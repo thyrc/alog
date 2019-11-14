@@ -1,0 +1,14 @@
+$ wc -l ./test.log
+5000000 ./test.log
+
+$ time perl ../anon.pl test.log >/dev/null
+perl ../anon.pl test.log > /dev/null  9.48s user 0.23s system 99% cpu 9.714 total
+
+$time ./target/release/anon test.log >/dev/null
+./target/release/anon test.log > /dev/null  4.22s user 0.84s system 99% cpu 5.062 total
+
+# perl / pmap -d $pid |grep mapped
+mapped: 4480K    writeable/private: 716K    shared: 0K
+
+# rust
+mapped: 464K    writeable/private: 196K    shared: 0K

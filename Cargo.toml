@@ -1,0 +1,13 @@
+[package]
+name = "anon"
+version = "0.1.0"
+authors = ["thyrc <thyrc@users.noreply.github.com>"]
+edition = "2018"
+publish = false
+description = "Anonymize 'Combined Log Format' data"
+license = "MIT"
+
+[profile.release]
+panic = 'abort'
+
+[dependencies]
