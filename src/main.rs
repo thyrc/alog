@@ -7,12 +7,9 @@ fn replace_remote_address(reader: Box<dyn BufRead>) {
     for buffer in reader.lines() {
         match buffer {
             Ok(line) => {
-                // trim_end() gains ~10% speed
-                let v: Vec<&str> = line.trim_end().splitn(2, ' ').collect();
+                let v: Vec<&str> = line.splitn(2, ' ').collect();
                 match v.len() {
-                    1 => match line.len() {
-                        _ => println!("{}", &v[0]),
-                    },
+                    1 => println!("{}", line),
                     2 => {
                         let (remote_addr, log) = (&v[0], &v[1]);
                         match remote_addr.parse::<net::Ipv4Addr>() {
@@ -23,7 +20,7 @@ fn replace_remote_address(reader: Box<dyn BufRead>) {
                             },
                         }
                     }
-                    _ => continue,
+                    _ => println!("{}", line),
                 }
             }
             Err(err) => { eprintln!("Error reading from reader: {}", err);

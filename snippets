@@ -11,4 +11,10 @@ $time ./target/release/anon test.log >/dev/null
 mapped: 4480K    writeable/private: 716K    shared: 0K
 
 # rust
-mapped: 464K    writeable/private: 196K    shared: 0K
+mapped: 460K    writeable/private: 192K    shared: 0K
+
+# w/ '1 => '
+rustc --edition=2018 --crate-name anon_full_match src/main.rs --color always --crate-type bin --emit=asm -C opt-level=3 -C panic=abort --out-dir /tmp -L dependency=./target/release/deps -C target-feature=+crt-static
+
+# w/o '1 => ', 10% slower...
+rustc --edition=2018 --crate-name anon_short_match src/main.rs --color always --crate-type bin --emit=asm -C opt-level=3 -C panic=abort --out-dir /tmp -L dependency=./target/release/deps -C target-feature=+crt-static
