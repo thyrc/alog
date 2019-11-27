@@ -1,11 +1,12 @@
 use std::env;
+use std::error::Error;
 use std::fs::OpenOptions;
 use std::io::{self, BufRead, BufReader, Write};
 use std::net;
 use std::process;
 
-fn replace_remote_address<W: Write>(reader: Box<dyn BufRead>, mut w: W) -> Result<(), Box<dyn std::error::Error>> {
-    for buffer in reader.lines() {
+fn replace_remote_address<W: Write>(r: Box<dyn BufRead>, mut w: W) -> Result<(), Box<dyn Error>> {
+    for buffer in r.lines() {
         match buffer {
             Ok(line) => {
                 let v: Vec<&str> = line.splitn(2, ' ').collect();
@@ -23,9 +24,9 @@ fn replace_remote_address<W: Write>(reader: Box<dyn BufRead>, mut w: W) -> Resul
                     }
                     _ => writeln!(&mut w, "{}", line)?,
                 };
-            }
-            Err(err) => { eprintln!("Error reading from reader: {}", err);
-                          process::exit(1);
+            },
+            Err(e) => { eprintln!("Error reading from reader: {}", e);
+                        process::exit(1);
             },
         }
     }
@@ -67,29 +68,32 @@ mod tests {
     fn replace_ipv4() {
         use std::io::Cursor;
         let mut buff = Cursor::new(vec![0; 512]);
-        let log = Box::new("8.8.8.8 - - [21/Oct/2019:12:27:25 +0200] \"GET / HTTP/1.1\" 200 46948 \"-\" \"Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)\" \"-\"".as_bytes());
+        let log = Box::new("8.8.8.8 - frank [10/Oct/2000:13:55:36 -0700] \"GET /apache_pb.gif HTTP/1.0\" 200 2326 \"http://www.example.com/start.html\" \"Mozilla/4.08 [en] (Win98; I ;Nav)\"".as_bytes());
+        let local_log = "127.0.0.1 - frank [10/Oct/2000:13:55:36 -0700] \"GET /apache_pb.gif HTTP/1.0\" 200 2326 \"http://www.example.com/start.html\" \"Mozilla/4.08 [en] (Win98; I ;Nav)\"".as_bytes();
 
         replace_remote_address(log, &mut buff).unwrap();
-        assert_eq!(&buff.get_ref()[..10], &[49, 50, 55, 46, 48, 46, 48, 46, 49, 32]);
+        assert!(&buff.get_ref().starts_with(&local_log));
     }
 
     #[test]
     fn replace_ipv6() {
         use std::io::Cursor;
         let mut buff = Cursor::new(vec![0; 512]);
-        let log = Box::new("2a00:1450:4001:81b::2004 - - [21/Oct/2019:12:27:25 +0200] \"GET / HTTP/1.1\" 200 46948 \"-\" \"Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)\" \"-\"".as_bytes());
+        let log = Box::new("2a00:1450:4001:81b::2004 - frank [10/Oct/2000:13:55:36 -0700] \"GET /apache_pb.gif HTTP/1.0\" 200 2326 \"http://www.example.com/start.html\" \"Mozilla/4.08 [en] (Win98; I ;Nav)\"".as_bytes());
+        let local_log = "::1 - frank [10/Oct/2000:13:55:36 -0700] \"GET /apache_pb.gif HTTP/1.0\" 200 2326 \"http://www.example.com/start.html\" \"Mozilla/4.08 [en] (Win98; I ;Nav)\"".as_bytes();
 
         replace_remote_address(log, &mut buff).unwrap();
-        assert_eq!(&buff.get_ref()[..4], &[58, 58, 49, 32]);
+        assert!(&buff.get_ref().starts_with(&local_log));
     }
 
     #[test]
     fn replace_hostname() {
         use std::io::Cursor;
         let mut buff = Cursor::new(vec![0; 512]);
-        let log = Box::new("www.google.com - - [21/Oct/2019:12:27:25 +0200] \"GET / HTTP/1.1\" 200 46948 \"-\" \"Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)\" \"-\"".as_bytes());
+        let log = Box::new("google.com - frank [10/Oct/2000:13:55:36 -0700] \"GET /apache_pb.gif HTTP/1.0\" 200 2326 \"http://www.example.com/start.html\" \"Mozilla/4.08 [en] (Win98; I ;Nav)\"".as_bytes());
+        let local_log = "localhost - frank [10/Oct/2000:13:55:36 -0700] \"GET /apache_pb.gif HTTP/1.0\" 200 2326 \"http://www.example.com/start.html\" \"Mozilla/4.08 [en] (Win98; I ;Nav)\"".as_bytes();
 
         replace_remote_address(log, &mut buff).unwrap();
-        assert_eq!(&buff.get_ref()[..10], &[108, 111, 99, 97, 108, 104, 111, 115, 116, 32]);
+        assert!(&buff.get_ref().starts_with(&local_log));
     }
 }
