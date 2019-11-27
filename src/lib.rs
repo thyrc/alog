@@ -1,6 +1,6 @@
 use std::env;
 use std::error::Error;
-use std::fs::OpenOptions;
+use std::fs::File;
 use std::io::{self, BufRead, BufReader, Write};
 use std::net;
 use std::process;
@@ -38,7 +38,7 @@ pub fn run() {
     let mut output = std::io::stdout();
     if args.len() > 1 {
         for arg in &args[1..] {
-            let f = OpenOptions::new().read(true).open(arg);
+            let f = File::open(arg);
             let f = match f {
                 Ok(file) => file,
                 Err(_) => { eprintln!("Error reading file '{}'.", arg);
