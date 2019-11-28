@@ -13,14 +13,14 @@ pub struct Config<'a> {
 }
 
 impl<'a> Config<'a> {
-    pub fn new() -> Result<Config<'a>, &'static str> {
+    pub fn new() -> Config<'a> {
         let ipv4_replacement = "127.0.0.1";
         let ipv6_replacement = "::1";
         let hostname_replacement = "localhost";
 
         let input_files = vec![];
 
-        Ok(Config { ipv4_replacement, ipv6_replacement, hostname_replacement, input_files })
+        Config { ipv4_replacement, ipv6_replacement, hostname_replacement, input_files }
     }
 
     pub fn parse_args(&mut self, args: env::Args) -> Result<(), &'static str>{
