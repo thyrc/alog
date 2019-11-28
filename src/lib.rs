@@ -96,7 +96,7 @@ mod tests {
         let log = Box::new("8.8.8.8 - frank [10/Oct/2000:13:55:36 -0700] \"GET /apache_pb.gif HTTP/1.0\" 200 2326 \"http://www.example.com/start.html\" \"Mozilla/4.08 [en] (Win98; I ;Nav)\"".as_bytes());
         let local_log = "127.0.0.1 - frank [10/Oct/2000:13:55:36 -0700] \"GET /apache_pb.gif HTTP/1.0\" 200 2326 \"http://www.example.com/start.html\" \"Mozilla/4.08 [en] (Win98; I ;Nav)\"".as_bytes();
 
-        replace_remote_address(&Config::new().unwrap(), log, &mut buff).unwrap();
+        replace_remote_address(&Config::new(), log, &mut buff).unwrap();
         assert!(&buff.get_ref().starts_with(&local_log));
     }
 
@@ -107,7 +107,7 @@ mod tests {
         let log = Box::new("2a00:1450:4001:81b::2004 - frank [10/Oct/2000:13:55:36 -0700] \"GET /apache_pb.gif HTTP/1.0\" 200 2326 \"http://www.example.com/start.html\" \"Mozilla/4.08 [en] (Win98; I ;Nav)\"".as_bytes());
         let local_log = "::1 - frank [10/Oct/2000:13:55:36 -0700] \"GET /apache_pb.gif HTTP/1.0\" 200 2326 \"http://www.example.com/start.html\" \"Mozilla/4.08 [en] (Win98; I ;Nav)\"".as_bytes();
 
-        replace_remote_address(&Config::new().unwrap(), log, &mut buff).unwrap();
+        replace_remote_address(&Config::new(), log, &mut buff).unwrap();
         assert!(&buff.get_ref().starts_with(&local_log));
     }
 
@@ -118,7 +118,7 @@ mod tests {
         let log = Box::new("google.com - frank [10/Oct/2000:13:55:36 -0700] \"GET /apache_pb.gif HTTP/1.0\" 200 2326 \"http://www.example.com/start.html\" \"Mozilla/4.08 [en] (Win98; I ;Nav)\"".as_bytes());
         let local_log = "localhost - frank [10/Oct/2000:13:55:36 -0700] \"GET /apache_pb.gif HTTP/1.0\" 200 2326 \"http://www.example.com/start.html\" \"Mozilla/4.08 [en] (Win98; I ;Nav)\"".as_bytes();
 
-        replace_remote_address(&Config::new().unwrap(), log, &mut buff).unwrap();
+        replace_remote_address(&Config::new(), log, &mut buff).unwrap();
         assert!(&buff.get_ref().starts_with(&local_log));
     }
 }
