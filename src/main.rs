@@ -1,14 +1,34 @@
-use std::env;
-use std::process;
-use alog::{Config, run};
+use alog::run;
+
+extern crate clap;
+use clap::{App, Arg};
 
 fn main() {
-    let mut config = Config::new();
+    let cli_arguments = App::new("alog")
+                            .version("0.1.1")
+                            .about("Mangle common / combined logs")
+                            .arg(Arg::with_name("ipv4-replacement")
+                                .short("4")
+                                .long("ipv4-replacement")
+                                .value_name("ipv4-replacement")
+                                .help("Sets IPv4 replacement string")
+                                .takes_value(true))
+                            .arg(Arg::with_name("ipv6-replacement")
+                                .short("6")
+                                .long("ipv6-replacemment")
+                                .value_name("ipv6-replacement")
+                                .help("Sets IPv6 replacement string")
+                                .takes_value(true))
+                            .arg(Arg::with_name("hostname-replacement")
+                                .long("hostname-replacemment")
+                                .value_name("hostname-replacement")
+                                .help("Sets hostname replacement string")
+                                .takes_value(true))
+                            .arg(Arg::with_name("INPUT")
+                                .help("Sets the input file(s) to use")
+                                .index(1)
+                                .multiple(true))
+                            .get_matches();
 
-    config.parse_args(env::args()).unwrap_or_else(|err| {
-        eprintln!("Problem parsing arguments: {}", err);
-        process::exit(1);
-    });
-
-    run(config);
+    run(&cli_arguments);
 }
