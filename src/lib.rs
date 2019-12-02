@@ -43,8 +43,8 @@ pub fn run(args: &clap::ArgMatches) {
             let f = File::open(arg);
             let f = match f {
                 Ok(file) => file,
-                Err(_) => {
-                    eprintln!("Error reading file '{}'.", arg);
+                Err(e) => {
+                    eprintln!("Error reading file '{}': {}.", arg, e);
                     process::exit(1);
                 }
             };
