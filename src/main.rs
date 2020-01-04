@@ -38,6 +38,14 @@ fn main() {
                 .takes_value(true),
         )
         .arg(
+            Arg::with_name("skip-invalid")
+                .short("s")
+                .long("skip-invalid")
+                .value_name("skip-invalid")
+                .help("Skip invalid lines")
+                .takes_value(false),
+        )
+        .arg(
             Arg::with_name("output")
                 .short("o")
                 .long("output")
@@ -68,6 +76,10 @@ fn main() {
 
     if let Some(ipv4) = cli_arguments.value_of("ipv4-replacement") {
         config.set_ipv4_value(ipv4);
+    }
+
+    if cli_arguments.is_present("skip-invalid") {
+        config.set_skip(true);
     }
 
     if let Some(output) = cli_arguments.value_of("output") {

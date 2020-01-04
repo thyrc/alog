@@ -1,35 +1,50 @@
 //! `alog` is a simple log file anonymizer.
 //!
-//! # About
+//! ## About
 //!
-//! In fact `alog` just replaces the first *word*[^1] on every line of any UTF-8 stream with a customizable string.
+//! In fact `alog` just replaces the first *word*[^1] on every line of any input stream with a
+//! customizable string.
 //!
-//! So "log file anonymizer" might be a bit of an overstatement, but `alog` can be used to (very efficiently) replace the $remote_address
-//! part in many access log formats, e.g. Nginx' default combined access_log.
+//! So "log file anonymizer" might be a bit of an overstatement, but `alog` can be used to (very
+//! efficiently) replace the $remote_addr part in many access log formats, e.g. Nginx' default
+//! combined log format:
 //!
-//! By default any parseable $remote_address is replaced by it's *localhost* representation,
+//! ```text
+//! log_format combined '$remote_addr - $remote_user [$time_local] '
+//!                     '"$request" $status $body_bytes_sent '
+//!                     '"$http_referer" "$http_user_agent"';
+//! ```
+//!
+//! By default any parseable $remote_addr is replaced by it's *localhost* representation,
+//!
 //! * any valid IPv4 address is replaced by '127.0.0.1',
-//! * any valid IPv6 address is replaced by '::1'
-//! * and any String (what might be a domain name) with 'localhost'.
+//! * any valid IPv6 address is replaced by '::1' and
+//! * any String (what might be a domain name) with 'localhost'.
 //!
-//! For now this only works on UTF-8 input streams, which is not much of an problem on most Linux systems, but still is a restriction not present in the
-//! <10 line Perl script `alog` was supposed to replace.
+//! Lines without a $remote_addr part will remain unchanged (but can be skipped with
+//! [`alog::Config::set_skip()`] set to `true`).
 //!
-//! [^1]: Any first substring separated by a `' '` (Space) from the remainder of the line.
+//! [^1]: Any first substring separated by a `b' '` (Space) from the remainder of the line.
 //!
-//! ## Personal data in server logs
+//! ### Personal data in server logs
 //!
-//! The default configuration of popular web servers including Apache Web Server and Nginx collect and store at least two of the following three types of logs:
+//! The default configuration of popular web servers including Apache Web Server and Nginx collect
+//! and store at least two of the following three types of logs:
 //!
 //! 1. access logs
 //! 2. error logs (including processing-language logs like PHP)
 //! 3. security audit logs
 //!
-//! All of these logs contain personal information by default. IP addresses are specifically defined as personal data by the GDPR.
-//! The logs can also contain usernames if your web service uses them as part of their URL structure, and even the referral information
-//! that’s logged by default **can** contain personal information (e.g. unintended collection of sensitive data).
+//! All of these logs contain personal information by default. IP addresses are specifically
+//! defined as personal data by the [GDPR].  The logs can also contain usernames if your web
+//! service uses them as part of their URL structure, and even the referral information that’s
+//! logged by default **can** contain personal information (or other sensitive data).
 //!
-//! So keep in mind, that just removing the IP / `$remote_host` part might not be enough to fully anonymize any given log file.
+//! So keep in mind, that just removing the IP / `$remote_addr` part might not be enough to fully
+//! anonymize any given log file.
+//!
+//! [GDPR]: https://gdpr.eu/article-4-definitions/
+//! [`alog::Config::set_skip()`]: ./struct.Config.html#method.set_skip
 
 use std::fs::File;
 use std::fs::OpenOptions;
@@ -45,12 +60,13 @@ pub struct IOConfig {
     output: Option<String>,
 }
 
-/// Collection of replacement strings
+/// Collection of replacement strings / config flags
 #[derive(Debug)]
 pub struct Config {
     ipv4: String,
     ipv6: String,
     host: String,
+    skip: bool,
 }
 
 /// defaults to `None` for both input and output
@@ -70,6 +86,7 @@ impl Default for Config {
             ipv4: "127.0.0.1".to_string(),
             ipv6: "::1".to_string(),
             host: "localhost".to_string(),
+            skip: false,
         }
     }
 }
@@ -90,6 +107,11 @@ impl Config {
         &self.host
     }
 
+    /// Get `skip` value
+    pub fn get_skip(&self) -> bool {
+        self.skip
+    }
+
     /// Set IPv4 replacement `String`
     pub fn set_ipv4_value(&mut self, ipv4: &str) {
         self.ipv4 = ipv4.to_string();
@@ -103,6 +125,11 @@ impl Config {
     /// Set `hostname` replacement `String`
     pub fn set_host_value(&mut self, host: &str) {
         self.host = host.to_string();
+    }
+
+    /// Set `skip` field
+    pub fn set_skip(&mut self, b: bool) {
+        self.skip = b;
     }
 }
 
@@ -133,55 +160,77 @@ impl IOConfig {
     }
 }
 
-/// Errors
+/// Reads lines from `reader`, if there is a '*first word*' (any String separated from the
+/// remainder of the line by a b' ' (Space) byte) this word will be replaced
 ///
-/// This function has the same error semantics as `BufRead::read_line` and will also return an error if the read bytes are not valid UTF-8.
+/// Any word, that can be parsed as * [`std::net::Ipv4Addr`] will be replaced with
+/// [`alog::Config::get_ipv4_value()`], * [`std::net::Ipv6Addr`] will be replaced with
+/// [`alog::Config::get_ipv6_value()`], * any other *word* will be replaced with
+/// [`alog::Config::get_host_value()`].
+///
+/// Any line without a 'first word' will be written as is if [`alog::Config::get_skip()`] returns
+/// `false` (default), or will be skipped otherwise.
+///
+/// # Errors
+///
+/// This function will return an I/O error if the underlying reader or writer returns an error.
+///
+/// [`alog::Config::get_ipv4_value()`]: ./struct.Config.html#method.get_ipv4_value
+/// [`alog::Config::get_ipv6_value()`]: ./struct.Config.html#method.get_ipv6_value
+/// [`alog::Config::get_host_value()`]: ./struct.Config.html#method.get_host_value
 fn replace_remote_address<W: Write>(
     config: &Config,
-    reader: Box<dyn BufRead>,
+    mut reader: Box<dyn BufRead>,
     mut writer: W,
 ) -> Result<(), std::io::Error> {
-    for buffer in reader.lines() {
-        match buffer {
-            Ok(line) => {
-                let v: Vec<&str> = line.splitn(2, ' ').collect();
-                match v.len() {
-                    // 1 => writeln!(&mut writer, "{}", line)?,
-                    2 => {
-                        let (remote_addr, log) = (&v[0], &v[1]);
-                        match remote_addr.parse::<net::Ipv4Addr>() {
-                            Ok(_) => writeln!(&mut writer, "{} {}", config.get_ipv4_value(), log)?,
-                            Err(_) => match remote_addr.parse::<net::Ipv6Addr>() {
-                                Ok(_) => {
-                                    writeln!(&mut writer, "{} {}", config.get_ipv6_value(), log)?
-                                }
-                                Err(_) => {
-                                    writeln!(&mut writer, "{} {}", config.get_host_value(), log)?
-                                }
-                            },
+    let mut buf = vec![];
+
+    'lines: loop {
+        buf.clear();
+        let bytes_read = reader.read_until(b'\n', &mut buf)?;
+        match bytes_read {
+            0 => break,
+            _ => {
+                for (i, byte) in buf.iter().enumerate() {
+                    if *byte == b' ' {
+                        if let Ok(_) = String::from_utf8_lossy(&buf[..i]).parse::<net::Ipv4Addr>() {
+                            write!(&mut writer, "{}", config.get_ipv4_value())?;
+                        } else if let Ok(_) =
+                            String::from_utf8_lossy(&buf[..i]).parse::<net::Ipv6Addr>()
+                        {
+                            write!(&mut writer, "{}", config.get_ipv6_value())?;
+                        } else {
+                            write!(&mut writer, "{}", config.get_host_value())?;
                         }
+                        writer.write(&buf[i..])?;
+                        continue 'lines;
                     }
-                    _ => writeln!(&mut writer, "{}", line)?,
-                };
+                }
+                if config.get_skip() != true {
+                    writer.write(&buf)?;
+                }
             }
-            Err(e) => return Err(e),
-        }
+        };
     }
     Ok(())
 }
 
-/// Creates a reader (defaults to `io::Stdin`) and writer (defaults to `io::Stdout`) from `IOConfig.reader` and `IOConfig.writer`, passes both along with the
-/// `Config` struct to actually replace any first *word* in `reader` with `String`s in `Config.{ip4,ipv6,host}`.
-///
-/// Any word, that can be parsed as
-/// * `net::Ipv4Addr` will be replaced with `Config.ip4`,
-/// * `net::Ipv6Addr` will be replaced with `Config.ip6`,
-/// * any other *word* will be replaced with `Config.host`.
+/// Creates a reader (defaults to [`std::io::Stdin`]) and writer (defaults to [`std::io::Stdout`])
+/// from [`alog::IOConfig`], passes both along with the [`alog::Config`] struct to actually replace
+/// any first *word* in `reader` with strings stored in [`alog::Config`]`.
 ///
 /// # Errors
 ///
-/// Exits when `IOConfig.output` already exists
-/// Exits when `IOConfig.config` contains invalid UTF-8.
+/// Exits when [`alog::IOConfig::get_output()`] already exists or the new reader / writer retruns
+/// an error.
+///
+/// [`alog::Config`]: ./struct.Config.html
+/// [`alog::IOConfig`]: ./struct.IOConfig.html
+/// [`alog::IOConfig::get_output()`]: ./struct.IOConfig.html#method.get_output
+/// [`std::io::Stdin`]: https://doc.rust-lang.org/std/io/struct.Stdin.html
+/// [`std::io::Stdout`]: https://doc.rust-lang.org/std/io/struct.Stdout.html
+/// [`std::net::Ipv4Addr`]: https://doc.rust-lang.org/std/net/struct.Ipv4Addr.html
+/// [`std::net::Ipv6Addr`]: https://doc.rust-lang.org/std/net/struct.Ipv6Addr.html
 pub fn run(ioconfig: &IOConfig, repl: &Config) {
     // Set writer
     let mut writer: Box<dyn Write> = match ioconfig.get_output() {
@@ -244,75 +293,75 @@ mod tests {
     #[test]
     fn replace_ipv4() {
         use std::io::Cursor;
-        let mut buff = Cursor::new(vec![]);
+        let mut buffer = Cursor::new(vec![]);
         let log = Box::new("8.8.8.8 - frank [10/Oct/2000:13:55:36 -0700] \"GET /apache_pb.gif HTTP/1.0\" 200 2326 \"http://www.example.com/start.html\" \"Mozilla/4.08 [en] (Win98; I ;Nav)\"".as_bytes());
         let local_log = "127.0.0.1 - frank [10/Oct/2000:13:55:36 -0700] \"GET /apache_pb.gif HTTP/1.0\" 200 2326 \"http://www.example.com/start.html\" \"Mozilla/4.08 [en] (Win98; I ;Nav)\"".as_bytes();
 
-        replace_remote_address(&Config::default(), log, &mut buff).unwrap();
-        assert!(&buff.get_ref().starts_with(&local_log));
+        replace_remote_address(&Config::default(), log, &mut buffer).unwrap();
+        assert_eq!(&buffer.into_inner(), &local_log);
     }
 
     #[test]
     fn replace_ipv6() {
         use std::io::Cursor;
-        let mut buff = Cursor::new(vec![]);
+        let mut buffer = Cursor::new(vec![]);
         let log = Box::new("2a00:1450:4001:81b::2004 - frank [10/Oct/2000:13:55:36 -0700] \"GET /apache_pb.gif HTTP/1.0\" 200 2326 \"http://www.example.com/start.html\" \"Mozilla/4.08 [en] (Win98; I ;Nav)\"".as_bytes());
         let local_log = "::1 - frank [10/Oct/2000:13:55:36 -0700] \"GET /apache_pb.gif HTTP/1.0\" 200 2326 \"http://www.example.com/start.html\" \"Mozilla/4.08 [en] (Win98; I ;Nav)\"".as_bytes();
 
-        replace_remote_address(&Config::default(), log, &mut buff).unwrap();
-        assert!(&buff.get_ref().starts_with(&local_log));
+        replace_remote_address(&Config::default(), log, &mut buffer).unwrap();
+        assert_eq!(&buffer.into_inner(), &local_log);
     }
 
     #[test]
     fn replace_host() {
         use std::io::Cursor;
-        let mut buff = Cursor::new(vec![]);
+        let mut buffer = Cursor::new(vec![]);
         let log = Box::new("google.com - frank [10/Oct/2000:13:55:36 -0700] \"GET /apache_pb.gif HTTP/1.0\" 200 2326 \"http://www.example.com/start.html\" \"Mozilla/4.08 [en] (Win98; I ;Nav)\"".as_bytes());
         let local_log = "localhost - frank [10/Oct/2000:13:55:36 -0700] \"GET /apache_pb.gif HTTP/1.0\" 200 2326 \"http://www.example.com/start.html\" \"Mozilla/4.08 [en] (Win98; I ;Nav)\"".as_bytes();
 
-        replace_remote_address(&Config::default(), log, &mut buff).unwrap();
-        assert!(&buff.get_ref().starts_with(&local_log));
+        replace_remote_address(&Config::default(), log, &mut buffer).unwrap();
+        assert_eq!(&buffer.into_inner(), &local_log);
     }
 
     #[test]
     fn replace_custom_ipv4() {
         use std::io::Cursor;
-        let mut buff = Cursor::new(vec![]);
+        let mut buffer = Cursor::new(vec![]);
         let log = Box::new("8.8.8.8 - frank [10/Oct/2000:13:55:36 -0700] \"GET /apache_pb.gif HTTP/1.0\" 200 2326 \"http://www.example.com/start.html\" \"Mozilla/4.08 [en] (Win98; I ;Nav)\"".as_bytes());
         let local_log = "custom_ipv4 - frank [10/Oct/2000:13:55:36 -0700] \"GET /apache_pb.gif HTTP/1.0\" 200 2326 \"http://www.example.com/start.html\" \"Mozilla/4.08 [en] (Win98; I ;Nav)\"".as_bytes();
 
         let mut conf = Config::default();
         conf.set_ipv4_value("custom_ipv4");
 
-        replace_remote_address(&conf, log, &mut buff).unwrap();
-        assert!(&buff.get_ref().starts_with(&local_log));
+        replace_remote_address(&conf, log, &mut buffer).unwrap();
+        assert_eq!(&buffer.into_inner(), &local_log);
     }
 
     #[test]
     fn replace_custom_ipv6() {
         use std::io::Cursor;
-        let mut buff = Cursor::new(vec![]);
+        let mut buffer = Cursor::new(vec![]);
         let log = Box::new("2a00:1450:4001:81b::2004 - frank [10/Oct/2000:13:55:36 -0700] \"GET /apache_pb.gif HTTP/1.0\" 200 2326 \"http://www.example.com/start.html\" \"Mozilla/4.08 [en] (Win98; I ;Nav)\"".as_bytes());
         let local_log = "custom_ipv6 - frank [10/Oct/2000:13:55:36 -0700] \"GET /apache_pb.gif HTTP/1.0\" 200 2326 \"http://www.example.com/start.html\" \"Mozilla/4.08 [en] (Win98; I ;Nav)\"".as_bytes();
 
         let mut conf = Config::default();
         conf.set_ipv6_value("custom_ipv6");
 
-        replace_remote_address(&conf, log, &mut buff).unwrap();
-        assert!(&buff.get_ref().starts_with(&local_log));
+        replace_remote_address(&conf, log, &mut buffer).unwrap();
+        assert_eq!(&buffer.into_inner(), &local_log);
     }
 
     #[test]
     fn replace_custom_host() {
         use std::io::Cursor;
-        let mut buff = Cursor::new(vec![]);
+        let mut buffer = Cursor::new(vec![]);
         let log = Box::new("google.com - frank [10/Oct/2000:13:55:36 -0700] \"GET /apache_pb.gif HTTP/1.0\" 200 2326 \"http://www.example.com/start.html\" \"Mozilla/4.08 [en] (Win98; I ;Nav)\"".as_bytes());
         let local_log = "custom_host - frank [10/Oct/2000:13:55:36 -0700] \"GET /apache_pb.gif HTTP/1.0\" 200 2326 \"http://www.example.com/start.html\" \"Mozilla/4.08 [en] (Win98; I ;Nav)\"".as_bytes();
 
         let mut conf = Config::default();
         conf.set_host_value("custom_host");
 
-        replace_remote_address(&conf, log, &mut buff).unwrap();
-        assert!(&buff.get_ref().starts_with(&local_log));
+        replace_remote_address(&conf, log, &mut buffer).unwrap();
+        assert_eq!(&buffer.into_inner(), &local_log);
     }
 }
