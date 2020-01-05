@@ -13,6 +13,9 @@ exclude = [
     ".github"
 ]
 
+[badges]
+travis-ci = { repository = "thyrc/alog" }
+
 [profile.release]
 panic = 'abort'
 lto = true
