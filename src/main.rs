@@ -46,6 +46,14 @@ fn main() {
                 .takes_value(false),
         )
         .arg(
+            Arg::with_name("flush-line")
+                .short("f")
+                .long("flush-line")
+                .value_name("flush-line")
+                .help("Flush output on every line")
+                .takes_value(false),
+        )
+        .arg(
             Arg::with_name("output")
                 .short("o")
                 .long("output")
@@ -76,6 +84,10 @@ fn main() {
 
     if let Some(ipv4) = cli_arguments.value_of("ipv4-replacement") {
         config.set_ipv4_value(ipv4);
+    }
+
+    if cli_arguments.is_present("flush-line") {
+        config.set_flush(true);
     }
 
     if cli_arguments.is_present("skip-invalid") {

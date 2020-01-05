@@ -67,6 +67,7 @@ pub struct Config {
     ipv6: String,
     host: String,
     skip: bool,
+    flush: bool,
 }
 
 /// defaults to `None` for both input and output
@@ -87,6 +88,7 @@ impl Default for Config {
             ipv6: "::1".to_string(),
             host: "localhost".to_string(),
             skip: false,
+            flush: false,
         }
     }
 }
@@ -112,6 +114,11 @@ impl Config {
         self.skip
     }
 
+    /// Get `flush` value
+    pub fn get_flush(&self) -> bool {
+        self.flush
+    }
+
     /// Set IPv4 replacement `String`
     pub fn set_ipv4_value(&mut self, ipv4: &str) {
         self.ipv4 = ipv4.to_string();
@@ -125,6 +132,11 @@ impl Config {
     /// Set `hostname` replacement `String`
     pub fn set_host_value(&mut self, host: &str) {
         self.host = host.to_string();
+    }
+
+    /// Set `flush` field
+    pub fn set_flush(&mut self, b: bool) {
+        self.flush = b;
     }
 
     /// Set `skip` field
@@ -203,15 +215,22 @@ fn replace_remote_address<R: BufRead, W: Write>(
                             write!(&mut writer, "{}", config.get_host_value())?;
                         }
                         writer.write(&buf[i..])?;
+                        if config.get_flush() == true {
+                            writer.flush()?;
+                        }
                         continue 'lines;
                     }
                 }
                 if config.get_skip() != true {
                     writer.write(&buf)?;
+                    if config.get_flush() == true {
+                        writer.flush()?;
+                    }
                 }
             }
         };
     }
+    writer.flush()?;
     Ok(())
 }
 
@@ -248,7 +267,7 @@ pub fn run(ioconfig: &IOConfig, config: &Config) {
             };
             Box::new(BufWriter::new(f)) as _
         }
-        None => Box::new(BufWriter::new(std::io::stdout())),
+        None => Box::new(BufWriter::new(io::stdout())),
     };
 
     // Set reader
@@ -301,6 +320,15 @@ pub fn run(ioconfig: &IOConfig, config: &Config) {
 /// assert_eq!(buffer, b"127.0.0.1 XxX");
 /// ```
 ///
+/// To read from Stdin and write to Stdout:
+///
+/// ```no_run
+/// use alog::{Config, run_raw};
+/// use std::io::{self, BufReader, BufWriter};
+///
+/// // Consider wrapping io::stdout in BufWriter
+/// run_raw(&Config::default(), BufReader::new(io::stdin()), io::stdout());
+/// ```
 /// ## Errors
 ///
 /// Exits when the new reader or writer retruns an error.
