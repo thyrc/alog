@@ -1,11 +1,13 @@
 [package]
+edition = "2018"
 name = "alog"
 version = "0.2.2"
 authors = ["thyrc <thyrc@users.noreply.github.com>"]
-edition = "2018"
 publish = false
 description = "Anonymize 'Combined Log Format' data"
 license = "MIT"
+repository = "https://github.com/thyrc/alog.git"
+keywords = ["log", "anonymize", "parse"]
 
 [profile.release]
 panic = 'abort'
@@ -13,4 +15,4 @@ lto = true
 debug = 1
 
 [dependencies]
-clap = "2"
+clap = "2.33.0"

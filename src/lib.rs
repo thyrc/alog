@@ -40,7 +40,7 @@
 //! service uses them as part of their URL structure, and even the referral information that’s
 //! logged by default **can** contain personal information (or other sensitive data).
 //!
-//! So keep in mind, that just removing the IP / `$remote_addr` part might not be enough to fully
+//! So keep in mind, just removing the IP / `$remote_addr` part might not be enough to fully
 //! anonymize any given log file.
 //!
 //! [GDPR]: https://gdpr.eu/article-4-definitions/
