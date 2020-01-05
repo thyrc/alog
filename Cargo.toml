@@ -3,11 +3,14 @@ edition = "2018"
 name = "alog"
 version = "0.2.2"
 authors = ["thyrc <thyrc@users.noreply.github.com>"]
-publish = false
 description = "Anonymize 'Combined Log Format' data"
 license = "MIT"
 repository = "https://github.com/thyrc/alog.git"
 keywords = ["log", "anonymize", "parse"]
+categories = ["parsing", "command-line-utilities"]
+exclude = [
+    "snippets"
+]
 
 [profile.release]
 panic = 'abort'
