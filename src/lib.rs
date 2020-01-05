@@ -178,9 +178,9 @@ impl IOConfig {
 /// [`alog::Config::get_ipv4_value()`]: ./struct.Config.html#method.get_ipv4_value
 /// [`alog::Config::get_ipv6_value()`]: ./struct.Config.html#method.get_ipv6_value
 /// [`alog::Config::get_host_value()`]: ./struct.Config.html#method.get_host_value
-fn replace_remote_address<W: Write>(
+fn replace_remote_address<R: BufRead, W: Write>(
     config: &Config,
-    mut reader: Box<dyn BufRead>,
+    mut reader: R,
     mut writer: W,
 ) -> Result<(), std::io::Error> {
     let mut buf = vec![];
@@ -247,8 +247,8 @@ pub fn run(ioconfig: &IOConfig, repl: &Config) {
                 }
             };
             Box::new(BufWriter::new(f)) as _
-        }
-        None => Box::new(std::io::stdout()) as _,
+        },
+        None => Box::new(BufWriter::new(std::io::stdout())),
     };
 
     // Set reader

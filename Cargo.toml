@@ -9,9 +9,8 @@ license = "MIT"
 
 [profile.release]
 panic = 'abort'
-opt-level = 'z'
 lto = true
-# debug = 1
+debug = 1
 
 [dependencies]
 clap = "2"
