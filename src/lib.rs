@@ -171,7 +171,7 @@ impl IOConfig {
 /// Any line without a 'first word' will be written as is if [`alog::Config::get_skip()`] returns
 /// `false` (default), or will be skipped otherwise.
 ///
-/// # Errors
+/// ## Errors
 ///
 /// This function will return an I/O error if the underlying reader or writer returns an error.
 ///
@@ -217,9 +217,9 @@ fn replace_remote_address<R: BufRead, W: Write>(
 
 /// Creates a reader (defaults to [`std::io::Stdin`]) and writer (defaults to [`std::io::Stdout`])
 /// from [`alog::IOConfig`], passes both along with the [`alog::Config`] struct to actually replace
-/// any first *word* in `reader` with strings stored in [`alog::Config`]`.
+/// any first *word* in `reader` with strings stored in [`alog::Config`].
 ///
-/// # Errors
+/// ## Errors
 ///
 /// Exits when [`alog::IOConfig::get_output()`] already exists or the new reader / writer retruns
 /// an error.
@@ -231,7 +231,7 @@ fn replace_remote_address<R: BufRead, W: Write>(
 /// [`std::io::Stdout`]: https://doc.rust-lang.org/std/io/struct.Stdout.html
 /// [`std::net::Ipv4Addr`]: https://doc.rust-lang.org/std/net/struct.Ipv4Addr.html
 /// [`std::net::Ipv6Addr`]: https://doc.rust-lang.org/std/net/struct.Ipv6Addr.html
-pub fn run(ioconfig: &IOConfig, repl: &Config) {
+pub fn run(ioconfig: &IOConfig, config: &Config) {
     // Set writer
     let mut writer: Box<dyn Write> = match ioconfig.get_output() {
         Some(output) => {
@@ -266,7 +266,7 @@ pub fn run(ioconfig: &IOConfig, repl: &Config) {
                 }
             };
             let reader: Box<dyn BufRead> = Box::new(BufReader::new(f));
-            if let Err(e) = replace_remote_address(repl, reader, &mut writer) {
+            if let Err(e) = replace_remote_address(config, reader, &mut writer) {
                 eprintln!("Error: {}", e);
                 if let Some(output) = ioconfig.get_output() {
                     std::fs::remove_file(Path::new(output)).unwrap();
@@ -276,7 +276,7 @@ pub fn run(ioconfig: &IOConfig, repl: &Config) {
         }
     } else {
         let reader: Box<dyn BufRead> = Box::new(BufReader::new(io::stdin()));
-        if let Err(e) = replace_remote_address(repl, reader, &mut writer) {
+        if let Err(e) = replace_remote_address(config, reader, &mut writer) {
             eprintln!("Error: {}", e);
             if let Some(output) = ioconfig.get_output() {
                 std::fs::remove_file(Path::new(output)).unwrap();
@@ -286,9 +286,47 @@ pub fn run(ioconfig: &IOConfig, repl: &Config) {
     }
 }
 
+/// Like [`alog::run`] but will let you pass your own `reader` and `writer`. Replacement strings
+/// and config flags will still be read from [`alog::Config`] though.
+///
+/// ## Example
+/// ```
+/// use alog::{Config, run_raw};
+/// use std::io::Cursor;
+///
+/// let line = Cursor::new(b"8.8.8.8 XxX");
+/// let mut buffer = vec![];
+///
+/// run_raw(&Config::default(), line, &mut buffer);
+/// assert_eq!(buffer, b"127.0.0.1 XxX");
+/// ```
+///
+/// ## Errors
+///
+/// Exits when the new reader or writer retruns an error.
+///
+/// [`alog::run`]: ./fn.run.html
+/// [`alog::Config`]: ./struct.Config.html
+pub fn run_raw<R: BufRead, W: Write>(config: &Config, reader: R, mut writer: W) {
+    if let Err(e) = replace_remote_address(config, reader, &mut writer) {
+        eprintln!("Error: {}", e);
+        process::exit(1);
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn run_raw_function() {
+        use std::io::Cursor;
+        let line = Cursor::new(b"8.8.8.8 XxX");
+        let mut buffer = vec![];
+
+        run_raw(&Config::default(), line, &mut buffer);
+        assert_eq!(buffer, b"127.0.0.1 XxX");
+    }
 
     #[test]
     fn replace_ipv4() {
