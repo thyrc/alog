@@ -247,7 +247,7 @@ pub fn run(ioconfig: &IOConfig, repl: &Config) {
                 }
             };
             Box::new(BufWriter::new(f)) as _
-        },
+        }
         None => Box::new(BufWriter::new(std::io::stdout())),
     };
 
