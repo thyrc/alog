@@ -10,5 +10,5 @@ jobs:
   fast_finish: true
 script:
   - rustc --version && cargo --version
-  - cargo build --verbose
+  - cargo build --all-features --verbose
   - cargo test --verbose

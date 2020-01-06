@@ -1,11 +1,12 @@
 [package]
 edition = "2018"
 name = "alog"
-version = "0.2.5"
+version = "0.3.0"
 authors = ["thyrc <thyrc@users.noreply.github.com>"]
 description = "Anonymize 'Combined Log Format' data"
 license = "MIT"
 repository = "https://github.com/thyrc/alog.git"
+readme = "README.md"
 keywords = ["log", "anonymize", "parse"]
 categories = ["parsing", "command-line-utilities"]
 exclude = [
@@ -16,10 +17,23 @@ exclude = [
 [badges]
 travis-ci = { repository = "thyrc/alog" }
 
+maintenance = { status = "actively-developed" }
+
 [profile.release]
 panic = 'abort'
 lto = true
-debug = 1
+debug = true
 
 [dependencies]
-clap = "2.33.0"
+clap = { version = "2.33.0", optional = true }
+
+[lib]
+name = "alog"
+path = "src/lib.rs"
+
+[features]
+alog-cli = [ "clap" ]
+
+[[bin]]
+name = "alog"
+required-features = [ "alog-cli" ]
