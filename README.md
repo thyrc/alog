@@ -51,6 +51,37 @@ or
 cargo build --all-features
 ```
 
+Usage
+=====
+
+Commandline tool
+----------------
+
+Run cli-tool with `--help`.
+
+```shell
+./target/release/alog --help
+```
+
+Library
+-------
+
+```rust
+extern crate alog;
+
+use alog::{IOConfig, Config, run};
+
+fn main() {
+    let mut io_conf = IOConfig::default();
+    let mut conf = Config::default();
+
+    io_conf.push_input("/tmp/test.log");
+    conf.set_ipv4_value("0.0.0.0");
+
+    run(&io_conf, &conf);
+}
+```
+
 Project status
 --------------
 
