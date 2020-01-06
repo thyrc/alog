@@ -48,7 +48,7 @@ cargo build --features alog-cli
 or 
 
 ```shell
-    $ cargo build --all-features
+cargo build --all-features
 ```
 
 Project status
@@ -58,5 +58,5 @@ Project status
 So nothing shiny.. but it now serves as a journeyman's piece.
 
 Along the way I expect the API to change quite a bit. I will update the README / Documentation
-when things quiet down a bit, but util then (maybe a 1.x release) I will add features, move parts
+when things quiet down, but until then (maybe a 1.x release) I will add features, move parts
 around and fix bugs when (and if) I find them.
