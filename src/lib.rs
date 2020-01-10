@@ -55,23 +55,30 @@ use std::process;
 
 /// INPUT / OUTPUT config
 #[derive(Debug)]
-pub struct IOConfig {
-    input: Option<Vec<String>>,
-    output: Option<String>,
+pub struct IOConfig<'a> {
+    /// List of input paths / files, e.g. Some(["/tmp/test1.log", "/tmp/test2.log"])
+    pub input: Option<Vec<&'a str>>,
+    /// Single output path / file
+    pub output: Option<&'a str>,
 }
 
 /// Collection of replacement strings / config flags
 #[derive(Debug)]
-pub struct Config {
-    ipv4: String,
-    ipv6: String,
-    host: String,
-    skip: bool,
-    flush: bool,
+pub struct Config<'a> {
+    /// IPv4-parseable $remote_addr replacement string
+    pub ipv4: &'a str,
+    /// IPv6-parseable $remote_addr replacement string
+    pub ipv6: &'a str,
+    /// $remote_addr replacement string
+    pub host: &'a str,
+    /// Skip lines w/o a $remote_addr part / first word
+    pub skip: bool,
+    /// Flush output after each line
+    pub flush: bool,
 }
 
 /// defaults to `None` for both input and output
-impl Default for IOConfig {
+impl<'a> Default for IOConfig<'a> {
     fn default() -> Self {
         IOConfig {
             input: None,
@@ -81,31 +88,31 @@ impl Default for IOConfig {
 }
 
 /// defaults to an equivalent of *localhost*
-impl Default for Config {
+impl<'a> Default for Config<'a> {
     fn default() -> Self {
         Config {
-            ipv4: "127.0.0.1".to_string(),
-            ipv6: "::1".to_string(),
-            host: "localhost".to_string(),
+            ipv4: "127.0.0.1",
+            ipv6: "::1",
+            host: "localhost",
             skip: false,
             flush: false,
         }
     }
 }
 
-impl Config {
+impl<'a> Config<'a> {
     /// Get IPv4 replacement value
-    pub fn get_ipv4_value(&self) -> &String {
+    pub fn get_ipv4_value(&self) -> &'a str {
         &self.ipv4
     }
 
     /// Get IPv6 replacement value
-    pub fn get_ipv6_value(&self) -> &String {
+    pub fn get_ipv6_value(&self) -> &'a str {
         &self.ipv6
     }
 
     /// Get string replacement value
-    pub fn get_host_value(&self) -> &String {
+    pub fn get_host_value(&self) -> &'a str {
         &self.host
     }
 
@@ -120,18 +127,18 @@ impl Config {
     }
 
     /// Set IPv4 replacement `String`
-    pub fn set_ipv4_value(&mut self, ipv4: &str) {
-        self.ipv4 = ipv4.to_string();
+    pub fn set_ipv4_value(&mut self, ipv4: &'a str) {
+        self.ipv4 = ipv4;
     }
 
     /// Set IPv6 replacement `String`
-    pub fn set_ipv6_value(&mut self, ipv6: &str) {
-        self.ipv6 = ipv6.to_string();
+    pub fn set_ipv6_value(&mut self, ipv6: &'a str) {
+        self.ipv6 = ipv6;
     }
 
     /// Set `hostname` replacement `String`
-    pub fn set_host_value(&mut self, host: &str) {
-        self.host = host.to_string();
+    pub fn set_host_value(&mut self, host: &'a str) {
+        self.host = host;
     }
 
     /// Set `flush` field
@@ -145,21 +152,21 @@ impl Config {
     }
 }
 
-impl IOConfig {
+impl<'a> IOConfig<'a> {
     /// Get input / reader names, if any (defaults to `None`)
-    pub fn get_input(&self) -> Option<&Vec<String>> {
+    pub fn get_input(&self) -> Option<&Vec<&'a str>> {
         self.input.as_ref()
     }
 
     /// Get output / writer name (defaults to `None`)
-    pub fn get_output(&self) -> Option<&String> {
-        self.output.as_ref()
+    pub fn get_output(&self) -> Option<&'a str> {
+        self.output
     }
 
     /// Add input `Path`
-    pub fn push_input(&mut self, i: &str) {
+    pub fn push_input(&mut self, i: &'a str) {
         if let Some(input) = &mut self.input {
-            input.push(i.to_string());
+            input.push(i);
         } else {
             self.input = Some(vec![]);
             self.push_input(i);
@@ -167,8 +174,8 @@ impl IOConfig {
     }
 
     /// Set output `Path`
-    pub fn set_output(&mut self, output: &str) {
-        self.output = Some(output.to_string());
+    pub fn set_output(&mut self, output: &'a str) {
+        self.output = Some(output);
     }
 }
 
