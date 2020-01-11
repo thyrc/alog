@@ -182,10 +182,10 @@ impl<'a> IOConfig<'a> {
 /// Reads lines from `reader`, if there is a '*first word*' (any String separated from the
 /// remainder of the line by a b' ' (Space) byte) this word will be replaced
 ///
-/// Any word, that can be parsed as * [`std::net::Ipv4Addr`] will be replaced with
-/// [`alog::Config::get_ipv4_value()`], * [`std::net::Ipv6Addr`] will be replaced with
-/// [`alog::Config::get_ipv6_value()`], * any other *word* will be replaced with
-/// [`alog::Config::get_host_value()`].
+/// Any word, that can be parsed as
+/// * [`std::net::Ipv4Addr`] will be replaced with [`alog::Config::get_ipv4_value()`],
+/// * [`std::net::Ipv6Addr`] will be replaced with [`alog::Config::get_ipv6_value()`],
+/// * any other *word* will be replaced with [`alog::Config::get_host_value()`].
 ///
 /// Any line without a 'first word' will be written as is if [`alog::Config::get_skip()`] returns
 /// `false` (default), or will be skipped otherwise.
@@ -257,7 +257,7 @@ fn replace_remote_address<R: BufRead, W: Write>(
 /// [`std::io::Stdout`]: https://doc.rust-lang.org/std/io/struct.Stdout.html
 /// [`std::net::Ipv4Addr`]: https://doc.rust-lang.org/std/net/struct.Ipv4Addr.html
 /// [`std::net::Ipv6Addr`]: https://doc.rust-lang.org/std/net/struct.Ipv6Addr.html
-pub fn run(ioconfig: &IOConfig, config: &Config) {
+pub fn run(config: &Config, ioconfig: &IOConfig) {
     // Set writer
     let mut writer: Box<dyn Write> = match ioconfig.get_output() {
         Some(output) => {
@@ -317,24 +317,22 @@ pub fn run(ioconfig: &IOConfig, config: &Config) {
 ///
 /// ## Example
 /// ```
-/// use alog::{Config, run_raw};
 /// use std::io::Cursor;
 ///
 /// let line = Cursor::new(b"8.8.8.8 XxX");
 /// let mut buffer = vec![];
 ///
-/// run_raw(&Config::default(), line, &mut buffer);
+/// alog::run_raw(&alog::Config::default(), line, &mut buffer);
 /// assert_eq!(buffer, b"127.0.0.1 XxX");
 /// ```
 ///
 /// To read from Stdin and write to Stdout:
 ///
 /// ```no_run
-/// use alog::{Config, run_raw};
 /// use std::io::{self, BufReader, BufWriter};
 ///
 /// // Consider wrapping io::stdout in BufWriter
-/// run_raw(&Config::default(), BufReader::new(io::stdin()), io::stdout());
+/// alog::run_raw(&alog::Config::default(), BufReader::new(io::stdin()), io::stdout());
 /// ```
 /// ## Errors
 ///

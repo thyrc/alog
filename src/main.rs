@@ -1,12 +1,10 @@
-use alog::{run, Config, IOConfig};
-
 extern crate clap;
 use clap::{App, Arg};
 
 fn main() {
-    let default_config = Config::default();
-    let mut config = Config::default();
-    let mut ioconfig = IOConfig::default();
+    let default_config = alog::Config::default();
+    let mut config = alog::Config::default();
+    let mut ioconfig = alog::IOConfig::default();
 
     let cli_arguments = App::new(env!("CARGO_PKG_NAME"))
         .version(env!("CARGO_PKG_VERSION"))
@@ -64,7 +62,7 @@ fn main() {
         .arg(
             Arg::with_name("input")
                 .value_name("INPUT")
-                .help("Sets the input file(s) to use")
+                .help("The input file(s) to use")
                 .index(1)
                 .multiple(true),
         )
@@ -104,5 +102,5 @@ fn main() {
         }
     }
 
-    run(&ioconfig, &config);
+    alog::run(&config, &ioconfig);
 }
