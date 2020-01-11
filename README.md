@@ -78,7 +78,7 @@ fn main() {
     io_conf.push_input("/tmp/test.log");
     conf.set_ipv4_value("0.0.0.0");
 
-    run(&io_conf, &conf);
+    run(&conf, &io_conf);
 }
 ```
 
