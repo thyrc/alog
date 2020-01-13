@@ -1,6 +1,8 @@
 alog
 ====
 
+[![Build Status](https://travis-ci.com/thyrc/alog.svg?branch=master)](https://travis-ci.com/thyrc/alog) [![Maintenace](https://img.shields.io/badge/maintenance-actively--developed-brightgreen.svg)](https://github.com/thyrc/alog/graphs/commit-activity) [![GitHub license](https://img.shields.io/github/license/thyrc/alog.svg)](https://github.com/thyrc/alog/blob/master/LICENSE)
+
 `alog` is a simple log file anonymizer.
 
 About
@@ -66,19 +68,42 @@ Run cli-tool with `--help`.
 Library
 -------
 
+Calling `run()`
+
 ```rust
 extern crate alog;
 
-use alog::{IOConfig, Config, run};
-
 fn main() {
-    let mut io_conf = IOConfig::default();
-    let mut conf = Config::default();
+    let mut io_conf = alog::IOConfig::default();
+    let mut conf = alog::Config::default();
 
     io_conf.push_input("/tmp/test.log");
     conf.set_ipv4_value("0.0.0.0");
 
-    run(&conf, &io_conf);
+    alog::run(&conf, &io_conf);
+}
+```
+
+or `run_raw()`
+
+```rust
+extern crate alog;
+
+use std::io::Cursor;
+
+fn main() {
+    let mut buffer = vec![];
+
+    alog::run_raw(
+        &alog::Config {
+            ipv4: "XXX",
+            ..Default::default()
+        },
+        Cursor::new(b"8.8.8.8 test line"),
+        &mut buffer,
+    );
+
+    assert_eq!(buffer, b"XXX test line");
 }
 ```
 
