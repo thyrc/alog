@@ -6,6 +6,7 @@ authors = ["thyrc <thyrc@users.noreply.github.com>"]
 description = "Anonymize 'Combined Log Format' data"
 license = "MIT"
 repository = "https://github.com/thyrc/alog.git"
+documentation="https://docs.rs/alog/"
 readme = "README.md"
 keywords = ["log", "anonymize", "parse"]
 categories = ["parsing", "command-line-utilities"]

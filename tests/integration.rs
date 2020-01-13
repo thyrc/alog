@@ -2,6 +2,7 @@ extern crate alog;
 
 use std::io::Cursor;
 
+#[test]
 fn main() {
     let mut buffer = vec![];
     alog::run_raw(
@@ -13,5 +14,5 @@ fn main() {
         &mut buffer,
     );
 
-    assert_eq!(buffer, b"127.0.0.1 test line");
+    assert_eq!(buffer, b"XXX test line");
 }

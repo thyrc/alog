@@ -1,20 +1,19 @@
-$ wc -l ./test.log
-5000000 ./test.log
+wc -l /tmp/test.log
+10000000 ./test.log
 
-$ time perl ../anon.pl test.log >/dev/null
-perl ../anon.pl test.log > /dev/null  9.48s user 0.23s system 99% cpu 9.714 total
+###
 
-$time ./target/release/anon test.log >/dev/null
-./target/release/anon test.log > /dev/null  4.22s user 0.84s system 99% cpu 5.062 total
+## rust
 
-# perl / pmap -d $pid |grep mapped
-mapped: 4480K    writeable/private: 716K    shared: 0K
+# static
+./target/release/alog /tmp/test.log > /dev/null  2.29s user 0.33s system 99% cpu 2.621 total
+mapped: 832K    writeable/private: 212K    shared: 0K
 
-# rust
-mapped: 460K    writeable/private: 192K    shared: 0K
+# shared
+./target/release/alog /tmp/test.log > /dev/null  2.39s user 0.42s system 99% cpu 2.817 total
+mapped: 1580K    writeable/private: 196K    shared: 0K
 
-# w/ '1 => '
-rustc --edition=2018 --crate-name anon_full_match src/main.rs --color always --crate-type bin --emit=asm -C opt-level=3 -C panic=abort --out-dir /tmp -L dependency=./target/release/deps -C target-feature=+crt-static
+## perl
 
-# w/o '1 => ', 10% slower...
-rustc --edition=2018 --crate-name anon_short_match src/main.rs --color always --crate-type bin --emit=asm -C opt-level=3 -C panic=abort --out-dir /tmp -L dependency=./target/release/deps -C target-feature=+crt-static
+perl anon.pl /tmp/test.log >/dev/null  18.85s user 0.39s system 99% cpu 19.249 total
+mapped: 4744K    writeable/private: 724K    shared: 0K
