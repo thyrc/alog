@@ -1,11 +1,11 @@
 [package]
 edition = "2018"
 name = "alog"
-version = "0.4.2"
+version = "0.4.3"
 authors = ["thyrc <thyrc@users.noreply.github.com>"]
 description = "Anonymize 'Combined Log Format' data"
 license = "MIT"
-repository = "https://github.com/thyrc/alog.git"
+repository = "https://github.com/thyrc/alog"
 documentation="https://docs.rs/alog/"
 readme = "README.md"
 keywords = ["log", "anonymize", "parse"]
@@ -17,7 +17,6 @@ exclude = [
 
 [badges]
 travis-ci = { repository = "thyrc/alog" }
-
 maintenance = { status = "actively-developed" }
 
 [profile.release]
