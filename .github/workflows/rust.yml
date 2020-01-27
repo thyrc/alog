@@ -27,11 +27,12 @@ jobs:
           target: ${{ matrix.target }}
           override: true
       - name: Display Rust version
-        run: rustc --version
+        run: rustc --version --verbose
       - name: Display Cargo version
         uses: actions-rs/cargo@v1
         with:
-          args: --version
+          command: version
+          args: --verbose
       - name: Run cargo build
         uses: actions-rs/cargo@v1
         with:
@@ -43,4 +44,4 @@ jobs:
         with:
           use-cross: true
           command: test
-          args: --target=${{ matrix.target }} --all --verbose
+          args: --target=${{ matrix.target }} --all-features --verbose

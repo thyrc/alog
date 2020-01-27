@@ -2,10 +2,8 @@ language: rust
 os:
   - linux
   - windows
-cache: cargo
 rust:
   - stable
-  - beta
   - nightly
 jobs:
   allow_failures:
@@ -13,7 +11,7 @@ jobs:
     - os: windows
   fast_finish: true
 script:
-  - rustc --version 
-  - cargo --version
+  - rustc --version --verbose
+  - cargo --version --verbose
   - cargo build --all-features --verbose
-  - cargo test --verbose
+  - cargo test --all-features --verbose
