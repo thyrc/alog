@@ -212,25 +212,29 @@ fn replace_remote_address<R: BufRead, W: Write>(
             _ => {
                 for (i, byte) in buf.iter().enumerate() {
                     if *byte == b' ' {
-                        if let Ok(_) = String::from_utf8_lossy(&buf[..i]).parse::<net::Ipv4Addr>() {
+                        if String::from_utf8_lossy(&buf[..i])
+                            .parse::<net::Ipv4Addr>()
+                            .is_ok()
+                        {
                             write!(&mut writer, "{}", config.get_ipv4_value())?;
-                        } else if let Ok(_) =
-                            String::from_utf8_lossy(&buf[..i]).parse::<net::Ipv6Addr>()
+                        } else if String::from_utf8_lossy(&buf[..i])
+                            .parse::<net::Ipv6Addr>()
+                            .is_ok()
                         {
                             write!(&mut writer, "{}", config.get_ipv6_value())?;
                         } else {
                             write!(&mut writer, "{}", config.get_host_value())?;
                         }
-                        writer.write(&buf[i..])?;
-                        if config.get_flush() == true {
+                        writer.write_all(&buf[i..])?;
+                        if config.get_flush() {
                             writer.flush()?;
                         }
                         continue 'lines;
                     }
                 }
-                if config.get_skip() != true {
-                    writer.write(&buf)?;
-                    if config.get_flush() == true {
+                if !config.get_skip() {
+                    writer.write_all(&buf)?;
+                    if config.get_flush() {
                         writer.flush()?;
                     }
                 }
