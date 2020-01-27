@@ -6,27 +6,54 @@ jobs:
   ubtuntu:
 
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        target:
+          - x86_64-unknown-linux-gnu
+          - x86_64-unknown-linux-musl
+        toolchain:
+          - stable
+          - nightly
 
     steps:
-    - uses: actions/checkout@v1
-    - name: Versions
-      run: rustc --version && cargo --version
-    - name: Build
-      run: cargo build --all-features --verbose
-    - name: Run tests
-      run: cargo test --verbose
+      - name: Checkout sources
+        uses: actions/checkout@v2
+      - uses: actions-rs/toolchain@v1
+        with:
+          toolchain: ${{ matrix.toolchain }}
+          target: ${{ matrix.target }}
+          override: true
+      - name: Display Rust version
+        run: rustc --version
+      - name: Display Cargo version
+        uses: actions-rs/cargo@v1
+        with:
+          args: --version
+      - name: Run cargo build
+        uses: actions-rs/cargo@v1
+        with:
+          use-cross: true
+          command: build
+          args: --release --target=${{ matrix.target }} --all-features --verbose
+      - name: Run cargo test
+        uses: actions-rs/cargo@v1
+        with:
+          use-cross: true
+          command: test
+          args: --target=${{ matrix.target }} --all --verbose
 
-  windows:
-
-    runs-on: windows-latest
-
-    steps:
-    - uses: actions/checkout@v1
-    - name: Rust Version
-      run: rustc --version
-    - name: Cargo Version
-      run: cargo --version
-    - name: Build
-      run: cargo build --all-features --verbose
-    - name: Run tests
-      run: cargo test --verbose
+#   windows:
+#
+#     runs-on: windows-latest
+#
+#     steps:
+#       - name: Checkout sources
+#         uses: actions/checkout@v2
+#       - name: Rust Version
+#         run: rustc --version
+#       - name: Cargo Version
+#         run: cargo --version
+#       - name: Run cargo build
+#         run: cargo build --all-features --verbose
+#       - name: Run cargo test
+#         run: cargo test --verbose
