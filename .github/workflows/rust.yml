@@ -5,9 +5,12 @@ on: [push]
 jobs:
   ubtuntu:
 
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.os }}
     strategy:
       matrix:
+        os:
+          - ubuntu-latest
+          - windows-latest
         target:
           - x86_64-unknown-linux-gnu
           - x86_64-unknown-linux-musl
@@ -41,19 +44,3 @@ jobs:
           use-cross: true
           command: test
           args: --target=${{ matrix.target }} --all --verbose
-
-#   windows:
-#
-#     runs-on: windows-latest
-#
-#     steps:
-#       - name: Checkout sources
-#         uses: actions/checkout@v2
-#       - name: Rust Version
-#         run: rustc --version
-#       - name: Cargo Version
-#         run: cargo --version
-#       - name: Run cargo build
-#         run: cargo build --all-features --verbose
-#       - name: Run cargo test
-#         run: cargo test --verbose
