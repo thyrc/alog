@@ -92,13 +92,13 @@ fn main() {
         config.set_skip(true);
     }
 
-    if let Some(output) = cli_arguments.value_of("output") {
-        ioconfig.set_output(output);
+    if let Some(output) = cli_arguments.value_of_os("output") {
+        ioconfig.set_osoutput(output);
     }
 
-    if let Some(input) = cli_arguments.values_of("input") {
+    if let Some(input) = cli_arguments.values_of_os("input") {
         for file in input {
-            ioconfig.push_input(&file);
+            ioconfig.push_osinput(file);
         }
     }
 

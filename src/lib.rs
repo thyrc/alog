@@ -46,6 +46,7 @@
 //! [GDPR]: https://gdpr.eu/article-4-definitions/
 //! [`alog::Config::set_skip()`]: ./struct.Config.html#method.set_skip
 
+use std::ffi::OsStr;
 use std::fs::File;
 use std::fs::OpenOptions;
 use std::io::{self, BufRead, BufReader, BufWriter, Write};
@@ -56,10 +57,10 @@ use std::process;
 /// INPUT / OUTPUT config
 #[derive(Debug)]
 pub struct IOConfig<'a> {
-    /// List of input paths / files, e.g. Some(["/tmp/test1.log", "/tmp/test2.log"])
-    pub input: Option<Vec<&'a str>>,
+    /// List of input paths / files, e.g. Some(vec![OsStr::new("/tmp/test1.log"), OsStr::new("/tmp/test2.log"]))
+    pub input: Option<Vec<&'a OsStr>>,
     /// Single output path / file
-    pub output: Option<&'a str>,
+    pub output: Option<&'a OsStr>,
 }
 
 /// Collection of replacement strings / config flags
@@ -101,6 +102,10 @@ impl<'a> Default for Config<'a> {
 }
 
 impl<'a> Config<'a> {
+    pub fn new() -> Self {
+        Self::default()
+    }
+
     /// Get IPv4 replacement value
     pub fn get_ipv4_value(&self) -> &'a str {
         &self.ipv4
@@ -153,29 +158,48 @@ impl<'a> Config<'a> {
 }
 
 impl<'a> IOConfig<'a> {
+    pub fn new() -> Self {
+        Self::default()
+    }
+
     /// Get input / reader names, if any (defaults to `None`)
-    pub fn get_input(&self) -> Option<&Vec<&'a str>> {
+    pub fn get_input(&self) -> Option<&Vec<&'a OsStr>> {
         self.input.as_ref()
     }
 
     /// Get output / writer name (defaults to `None`)
-    pub fn get_output(&self) -> Option<&'a str> {
+    pub fn get_output(&self) -> Option<&'a OsStr> {
         self.output
     }
 
-    /// Add input `Path`
-    pub fn push_input(&mut self, i: &'a str) {
+    /// Add input `Path` as `&OsStr`
+    pub fn push_osinput(&mut self, i: &'a OsStr) {
         if let Some(input) = &mut self.input {
             input.push(i);
+        } else {
+            self.input = Some(vec![]);
+            self.push_osinput(i);
+        }
+    }
+
+    /// Add input `Path` as `&str`
+    pub fn push_input(&mut self, i: &'a str) {
+        if let Some(input) = &mut self.input {
+            input.push(OsStr::new(i));
         } else {
             self.input = Some(vec![]);
             self.push_input(i);
         }
     }
 
-    /// Set output `Path`
-    pub fn set_output(&mut self, output: &'a str) {
-        self.output = Some(output);
+    /// Set output `Path` as `&OsStr`
+    pub fn set_osoutput(&mut self, o: &'a OsStr) {
+        self.output = Some(o);
+    }
+
+    /// Set output `Path` as `&str`
+    pub fn set_output(&mut self, o: &'a str) {
+        self.output = Some(OsStr::new(o));
     }
 }
 
@@ -272,7 +296,7 @@ pub fn run(config: &Config, ioconfig: &IOConfig) {
             let f = match f {
                 Ok(file) => file,
                 Err(e) => {
-                    eprintln!("Error writing to file {}: {}.", output, e);
+                    eprintln!("Error writing to file {}: {}.", output.to_string_lossy(), e);
                     std::process::exit(1);
                 }
             };
@@ -288,7 +312,7 @@ pub fn run(config: &Config, ioconfig: &IOConfig) {
             let f = match f {
                 Ok(file) => file,
                 Err(e) => {
-                    eprintln!("Error reading file '{}': {}.", arg, e);
+                    eprintln!("Error reading file '{}': {}.", arg.to_string_lossy(), e);
                     if let Some(output) = ioconfig.get_output() {
                         std::fs::remove_file(Path::new(output)).unwrap();
                     }
@@ -317,7 +341,7 @@ pub fn run(config: &Config, ioconfig: &IOConfig) {
 }
 
 /// Like [`alog::run`] but will let you pass your own `reader` and `writer`. Replacement strings
-/// and config flags will still be read from [`alog::Config`] though.
+/// and config flags will still be read from [`alog::Config`].
 ///
 /// ## Example
 /// ```
