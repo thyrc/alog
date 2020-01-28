@@ -173,12 +173,12 @@ impl<'a> IOConfig<'a> {
     }
 
     /// Add input `Path` as `&OsStr`
-    pub fn push_osinput(&mut self, i: &'a OsStr) {
+    pub fn push_input_os(&mut self, i: &'a OsStr) {
         if let Some(input) = &mut self.input {
             input.push(i);
         } else {
             self.input = Some(vec![]);
-            self.push_osinput(i);
+            self.push_input_os(i);
         }
     }
 
@@ -193,7 +193,7 @@ impl<'a> IOConfig<'a> {
     }
 
     /// Set output `Path` as `&OsStr`
-    pub fn set_osoutput(&mut self, o: &'a OsStr) {
+    pub fn set_output_os(&mut self, o: &'a OsStr) {
         self.output = Some(o);
     }
 
