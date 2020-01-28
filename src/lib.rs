@@ -278,6 +278,22 @@ fn replace_remote_address<R: BufRead, W: Write>(
 /// Exits when [`alog::IOConfig::get_output()`] already exists or the new reader / writer retruns
 /// an error.
 ///
+/// ## Example
+///
+/// ```[no_run]
+/// extern crate alog;
+///
+/// fn main() {
+///     alog::run(
+///         &alog::Config {
+///             host: "XXX",
+///             ..Default::default()
+///         },
+///         &alog::IOConfig::default()
+///     );
+/// }
+/// ```
+///
 /// [`alog::Config`]: ./struct.Config.html
 /// [`alog::IOConfig`]: ./struct.IOConfig.html
 /// [`alog::IOConfig::get_output()`]: ./struct.IOConfig.html#method.get_output
@@ -343,7 +359,12 @@ pub fn run(config: &Config, ioconfig: &IOConfig) {
 /// Like [`alog::run`] but will let you pass your own `reader` and `writer`. Replacement strings
 /// and config flags will still be read from [`alog::Config`].
 ///
+/// ## Errors
+///
+/// Exits when the new reader or writer retruns an error.
+///
 /// ## Example
+///
 /// ```
 /// use std::io::Cursor;
 ///
@@ -362,9 +383,6 @@ pub fn run(config: &Config, ioconfig: &IOConfig) {
 /// // Consider wrapping io::stdout in BufWriter
 /// alog::run_raw(&alog::Config::default(), BufReader::new(io::stdin()), io::stdout());
 /// ```
-/// ## Errors
-///
-/// Exits when the new reader or writer retruns an error.
 ///
 /// [`alog::run`]: ./fn.run.html
 /// [`alog::Config`]: ./struct.Config.html
