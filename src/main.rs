@@ -1,5 +1,7 @@
 extern crate clap;
+
 use clap::{App, Arg};
+use std::path::Path;
 
 fn main() {
     let default_config = alog::Config::default();
@@ -93,12 +95,12 @@ fn main() {
     }
 
     if let Some(output) = cli_arguments.value_of_os("output") {
-        ioconfig.set_output_os(output);
+        ioconfig.set_output(Path::new(output));
     }
 
     if let Some(input) = cli_arguments.values_of_os("input") {
         for file in input {
-            ioconfig.push_input_os(file);
+            ioconfig.push_input(file);
         }
     }
 

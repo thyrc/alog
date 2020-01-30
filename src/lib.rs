@@ -46,7 +46,6 @@
 //! [GDPR]: https://gdpr.eu/article-4-definitions/
 //! [`alog::Config::set_skip()`]: ./struct.Config.html#method.set_skip
 
-use std::ffi::OsStr;
 use std::fs::File;
 use std::fs::OpenOptions;
 use std::io::{self, BufRead, BufReader, BufWriter, Write};
@@ -57,10 +56,10 @@ use std::process;
 /// INPUT / OUTPUT config
 #[derive(Debug)]
 pub struct IOConfig<'a> {
-    /// List of input paths / files, e.g. Some(vec![OsStr::new("/tmp/test1.log"), OsStr::new("/tmp/test2.log"]))
-    pub input: Option<Vec<&'a OsStr>>,
+    /// List of input paths / files, e.g. Some(vec![Path::new("/tmp/test1.log"), Path::new("/tmp/test2.log")])
+    input: Option<Vec<&'a Path>>,
     /// Single output path / file
-    pub output: Option<&'a OsStr>,
+    output: Option<&'a Path>,
 }
 
 /// Collection of replacement strings / config flags
@@ -163,44 +162,30 @@ impl<'a> IOConfig<'a> {
     }
 
     /// Get input / reader names, if any (defaults to `None`)
-    pub fn get_input(&self) -> Option<&Vec<&'a OsStr>> {
+    pub fn get_input(&self) -> Option<&Vec<&'a Path>> {
         self.input.as_ref()
     }
 
     /// Get output / writer name (defaults to `None`)
-    pub fn get_output(&self) -> Option<&'a OsStr> {
+    pub fn get_output(&self) -> Option<&'a Path> {
         self.output
     }
 
-    /// Add input `Path` as `&OsStr`
-    pub fn push_input_os(&mut self, i: &'a OsStr) {
+    /// Add input `Path`
+    pub fn push_input<P: AsRef<Path> + ?Sized>(&mut self, i: &'a P) {
         if let Some(input) = &mut self.input {
-            input.push(i);
-        } else {
-            self.input = Some(vec![]);
-            self.push_input_os(i);
-        }
-    }
-
-    /// Add input `Path` as `&str`
-    pub fn push_input(&mut self, i: &'a str) {
-        if let Some(input) = &mut self.input {
-            input.push(OsStr::new(i));
+            input.push(i.as_ref());
         } else {
             self.input = Some(vec![]);
             self.push_input(i);
         }
     }
 
-    /// Set output `Path` as `&OsStr`
-    pub fn set_output_os(&mut self, o: &'a OsStr) {
+    /// Set output `Path`
+    pub fn set_output(&mut self, o: &'a Path) {
         self.output = Some(o);
     }
 
-    /// Set output `Path` as `&str`
-    pub fn set_output(&mut self, o: &'a str) {
-        self.output = Some(OsStr::new(o));
-    }
 }
 
 /// Reads lines from `reader`, if there is a '*first word*' (any String separated from the
