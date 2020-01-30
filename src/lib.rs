@@ -297,7 +297,7 @@ pub fn run(config: &Config, ioconfig: &IOConfig) {
             let f = match f {
                 Ok(file) => file,
                 Err(e) => {
-                    eprintln!("Error writing to file {}: {}.", output.to_string_lossy(), e);
+                    eprintln!("Error writing to file {}: {}.", output.display(), e);
                     std::process::exit(1);
                 }
             };
@@ -313,7 +313,7 @@ pub fn run(config: &Config, ioconfig: &IOConfig) {
             let f = match f {
                 Ok(file) => file,
                 Err(e) => {
-                    eprintln!("Error reading file '{}': {}.", arg.to_string_lossy(), e);
+                    eprintln!("Error reading file '{}': {}.", arg.display(), e);
                     if let Some(output) = ioconfig.get_output() {
                         std::fs::remove_file(Path::new(output)).unwrap();
                     }
