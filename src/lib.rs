@@ -1,3 +1,4 @@
+#![allow(clippy::needless_doctest_main, clippy::must_use_candidate)]
 //! `alog` is a simple log file anonymizer.
 //!
 //! ## About
@@ -6,7 +7,7 @@
 //! customizable string.
 //!
 //! So "log file anonymizer" might be a bit of an overstatement, but `alog` can be used to (very
-//! efficiently) replace the $remote_addr part in many access log formats, e.g. Nginx' default
+//! efficiently) replace the `$remote_addr` part in many access log formats, e.g. Nginx' default
 //! combined log format:
 //!
 //! ```text
@@ -15,13 +16,13 @@
 //!                     '"$http_referer" "$http_user_agent"';
 //! ```
 //!
-//! By default any parseable $remote_addr is replaced by it's *localhost* representation,
+//! By default any parseable `$remote_addr` is replaced by it's *localhost* representation,
 //!
 //! * any valid IPv4 address is replaced by '127.0.0.1',
 //! * any valid IPv6 address is replaced by '::1' and
 //! * any String (what might be a domain name) with 'localhost'.
 //!
-//! Lines without a $remote_addr part will remain unchanged (but can be skipped with
+//! Lines without a `$remote_addr` part will remain unchanged (but can be skipped with
 //! [`alog::Config::set_skip()`] set to `true`).
 //!
 //! [^1]: Any first substring separated by a `b' '` (Space) from the remainder of the line.
@@ -185,7 +186,6 @@ impl<'a> IOConfig<'a> {
     pub fn set_output(&mut self, o: &'a Path) {
         self.output = Some(o);
     }
-
 }
 
 /// Reads lines from `reader`, if there is a '*first word*' (any String separated from the
@@ -216,36 +216,35 @@ fn replace_remote_address<R: BufRead, W: Write>(
     'lines: loop {
         buf.clear();
         let bytes_read = reader.read_until(b'\n', &mut buf)?;
-        match bytes_read {
-            0 => break,
-            _ => {
-                for (i, byte) in buf.iter().enumerate() {
-                    if *byte == b' ' {
-                        if String::from_utf8_lossy(&buf[..i])
-                            .parse::<net::Ipv4Addr>()
-                            .is_ok()
-                        {
-                            write!(&mut writer, "{}", config.get_ipv4_value())?;
-                        } else if String::from_utf8_lossy(&buf[..i])
-                            .parse::<net::Ipv6Addr>()
-                            .is_ok()
-                        {
-                            write!(&mut writer, "{}", config.get_ipv6_value())?;
-                        } else {
-                            write!(&mut writer, "{}", config.get_host_value())?;
-                        }
-                        writer.write_all(&buf[i..])?;
-                        if config.get_flush() {
-                            writer.flush()?;
-                        }
-                        continue 'lines;
+        if let 0 = bytes_read {
+            break;
+        } else {
+            for (i, byte) in buf.iter().enumerate() {
+                if *byte == b' ' {
+                    if String::from_utf8_lossy(&buf[..i])
+                        .parse::<net::Ipv4Addr>()
+                        .is_ok()
+                    {
+                        write!(&mut writer, "{}", config.get_ipv4_value())?;
+                    } else if String::from_utf8_lossy(&buf[..i])
+                        .parse::<net::Ipv6Addr>()
+                        .is_ok()
+                    {
+                        write!(&mut writer, "{}", config.get_ipv6_value())?;
+                    } else {
+                        write!(&mut writer, "{}", config.get_host_value())?;
                     }
-                }
-                if !config.get_skip() {
-                    writer.write_all(&buf)?;
+                    writer.write_all(&buf[i..])?;
                     if config.get_flush() {
                         writer.flush()?;
                     }
+                    continue 'lines;
+                }
+            }
+            if !config.get_skip() {
+                writer.write_all(&buf)?;
+                if config.get_flush() {
+                    writer.flush()?;
                 }
             }
         };
