@@ -329,7 +329,8 @@ pub fn run(config: &Config, ioconfig: &IOConfig) {
             }
         }
     } else {
-        let reader: Box<dyn BufRead> = Box::new(BufReader::new(io::stdin()));
+        let stdin = io::stdin();
+        let reader: Box<dyn BufRead> = Box::new(stdin.lock());
         if let Err(e) = replace_remote_address(config, reader, &mut writer) {
             eprintln!("Error: {}", e);
             if let Some(output) = ioconfig.get_output() {
@@ -365,7 +366,8 @@ pub fn run(config: &Config, ioconfig: &IOConfig) {
 /// use std::io::{self, BufReader, BufWriter};
 ///
 /// // Consider wrapping io::stdout in BufWriter
-/// alog::run_raw(&alog::Config::default(), BufReader::new(io::stdin()), io::stdout());
+/// let stdin = io::stdin();
+/// alog::run_raw(&alog::Config::default(), stdin.lock(), io::stdout());
 /// ```
 ///
 /// [`alog::run`]: ./fn.run.html

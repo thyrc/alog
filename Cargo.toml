@@ -1,7 +1,7 @@
 [package]
 edition = "2018"
 name = "alog"
-version = "0.5.2"
+version = "0.5.3"
 authors = ["thyrc <thyrc@users.noreply.github.com>"]
 description = "Anonymize 'Combined Log Format' data"
 license = "MIT"
