@@ -287,6 +287,7 @@ fn replace_remote_address<R: BufRead, W: Write>(
 /// [`std::net::Ipv6Addr`]: https://doc.rust-lang.org/std/net/struct.Ipv6Addr.html
 pub fn run(config: &Config, ioconfig: &IOConfig) {
     // Set writer
+    let stdout = io::stdout();
     let mut writer: Box<dyn Write> = match ioconfig.get_output() {
         Some(output) => {
             let f = OpenOptions::new()
@@ -302,7 +303,7 @@ pub fn run(config: &Config, ioconfig: &IOConfig) {
             };
             Box::new(BufWriter::new(f)) as _
         }
-        None => Box::new(BufWriter::new(io::stdout())),
+        None => Box::new(BufWriter::new(stdout.lock())),
     };
 
     // Set reader
@@ -367,7 +368,8 @@ pub fn run(config: &Config, ioconfig: &IOConfig) {
 ///
 /// // Consider wrapping io::stdout in BufWriter
 /// let stdin = io::stdin();
-/// alog::run_raw(&alog::Config::default(), stdin.lock(), io::stdout());
+/// let stdout = io::stdout();
+/// alog::run_raw(&alog::Config::default(), stdin.lock(), stdout.lock());
 /// ```
 ///
 /// [`alog::run`]: ./fn.run.html
