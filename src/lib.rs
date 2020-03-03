@@ -66,13 +66,13 @@ pub struct IOConfig<'a> {
 /// Collection of replacement strings / config flags
 #[derive(Debug)]
 pub struct Config<'a> {
-    /// IPv4-parseable $remote_addr replacement string
+    /// IPv4-parseable `$remote_addr` replacement string
     pub ipv4: &'a str,
-    /// IPv6-parseable $remote_addr replacement string
+    /// IPv6-parseable `$remote_addr` replacement string
     pub ipv6: &'a str,
-    /// $remote_addr replacement string
+    /// `$remote_addr` replacement string
     pub host: &'a str,
-    /// Skip lines w/o a $remote_addr part / first word
+    /// Skip lines w/o a `$remote_addr` part / first word
     pub skip: bool,
     /// Flush output after each line
     pub flush: bool,
@@ -216,7 +216,7 @@ fn replace_remote_address<R: BufRead, W: Write>(
     'lines: loop {
         buf.clear();
         let bytes_read = reader.read_until(b'\n', &mut buf)?;
-        if let 0 = bytes_read {
+        if bytes_read == 0 {
             break;
         } else {
             for (i, byte) in buf.iter().enumerate() {
