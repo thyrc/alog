@@ -25,7 +25,8 @@
 //! Lines without a `$remote_addr` part will remain unchanged (but can be skipped with
 //! [`alog::Config::set_skip()`] set to `true`).
 //!
-//! [^1]: Any first substring separated by a `b' '` (Space) from the remainder of the line.
+//! [^1]: Any first substring *or* (zero width) anchor `^` separated by a `b' '` (Space) from the
+//! remainder of the line.
 //!
 //! ### Personal data in server logs
 //!

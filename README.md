@@ -1,7 +1,7 @@
 alog
 ====
 
-[![Build Status](https://travis-ci.com/thyrc/alog.svg?branch=master)](https://travis-ci.com/thyrc/alog) [![Maintenace](https://img.shields.io/badge/maintenance-actively--developed-brightgreen.svg)](https://github.com/thyrc/alog/graphs/commit-activity) [![GitHub license](https://img.shields.io/github/license/thyrc/alog.svg)](https://github.com/thyrc/alog/blob/master/LICENSE)
+[![Build Status](https://travis-ci.com/thyrc/alog.svg?branch=master)](https://travis-ci.com/thyrc/alog) [![GitHub license](https://img.shields.io/github/license/thyrc/alog.svg)](https://github.com/thyrc/alog/blob/master/LICENSE)
 
 `alog` is a simple log file anonymizer.
 
@@ -30,7 +30,8 @@ By default any parseable $remote_addr is replaced by it's *localhost* representa
 Lines without a $remote_addr part will remain unchanged (but can be skipped with
 [`alog::Config::set_skip()`] set to `true`).
 
-[^1]: Any first substring separated by a `b' '` (Space) from the remainder of the line.
+[^1]: Any first substring *or* (zero width) anchor `^` separated by a `b' '` (Space) from the 
+remainder of the line.
 
 Building alog
 =============
@@ -111,8 +112,10 @@ Project status
 --------------
 
 `alog` started as a replacement for a <10 line Perl script running on an old backup host.
-So nothing shiny.. but it now serves as a journeyman's piece.
+So nothing shiny.. but it helped me learning some Rust (and crates.io) basics.
 
-Along the way I expect the API to change quite a bit. I will update the README / Documentation
-when things quiet down, but until then (maybe a 1.x release) I will add features, move parts
-around and fix bugs when (and if) I find them.
+With version 0.5.6 I consider `alog` feature complete. It doesn't do much, but it does it 
+quite well. At some point I might re-use this crate to add parallel processing or try
+harder to actually anonymize data. But for now, this is it.
+
+I will still fix bugs when (and if) I find them, so `alog` is now passively-maintained.
