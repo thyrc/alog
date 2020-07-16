@@ -40,7 +40,7 @@ jobs:
         uses: actions/upload-artifact@v2
         with:
           name: alog-${{ matrix.target }}
-          path: ${{ github.workspace }}/target/release/alog
+          path: /target/${{ matrix.target }}/release/alog
         if: startsWith(matrix.toolchain, 'stable')
       - name: Run cargo test
         uses: actions-rs/cargo@v1
