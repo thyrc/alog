@@ -36,6 +36,8 @@ jobs:
           use-cross: true
           command: build
           args: --release --target=${{ matrix.target }} --all-features --verbose
+      - name: Find artifact
+        run: find ./target; find /target
       - name: Upload artifact
         uses: actions/upload-artifact@v2
         with:
