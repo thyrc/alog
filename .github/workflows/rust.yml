@@ -36,13 +36,11 @@ jobs:
           use-cross: true
           command: build
           args: --release --target=${{ matrix.target }} --all-features --verbose
-      - name: Find artifact
-        run: find ./target; find /target
       - name: Upload artifact
         uses: actions/upload-artifact@v2
         with:
           name: alog-${{ matrix.target }}
-          path: /target/${{ matrix.target }}/release/alog
+          path: ./target/${{ matrix.target }}/release/alog
         if: startsWith(matrix.toolchain, 'stable')
       - name: Run cargo test
         uses: actions-rs/cargo@v1
