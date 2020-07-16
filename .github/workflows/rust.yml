@@ -36,6 +36,12 @@ jobs:
           use-cross: true
           command: build
           args: --release --target=${{ matrix.target }} --all-features --verbose
+      - name: Upload artifact
+        uses: actions/upload-artifact@v2
+        with:
+          name: alog-${{ matrix.target }}
+          path: target/release/alog
+        if: starsWith(matrix.toolchain, 'stable')
       - name: Run cargo test
         uses: actions-rs/cargo@v1
         with:
@@ -72,6 +78,12 @@ jobs:
           use-cross: true
           command: build
           args: --release --all-features --verbose
+      - name: Upload artifact
+        uses: actions/upload-artifact@v2
+        with:
+          name: alog-${{ matrix.target }}.exe
+          path: target/release/alog.exe
+        if: starsWith(matrix.toolchain, 'stable')
       - name: Run cargo test
         uses: actions-rs/cargo@v1
         with:
