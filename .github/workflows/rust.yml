@@ -41,7 +41,7 @@ jobs:
         with:
           name: alog-${{ matrix.target }}
           path: target/release/alog
-        if: starsWith(matrix.toolchain, 'stable')
+        if: startsWith(matrix.toolchain, 'stable')
       - name: Run cargo test
         uses: actions-rs/cargo@v1
         with:
@@ -83,7 +83,7 @@ jobs:
         with:
           name: alog-${{ matrix.target }}.exe
           path: target/release/alog.exe
-        if: starsWith(matrix.toolchain, 'stable')
+        if: startsWith(matrix.toolchain, 'stable')
       - name: Run cargo test
         uses: actions-rs/cargo@v1
         with:
