@@ -46,6 +46,29 @@ fn main() {
                 .takes_value(false),
         )
         .arg(
+            Arg::with_name("authuser")
+                .short("a")
+                .long("authuser")
+                .value_name("authuser")
+                .help("Clear authuser")
+                .takes_value(false),
+        )
+        .arg(
+            Arg::with_name("notrim")
+                .short("n")
+                .long("notrim")
+                .value_name("no-trim")
+                .help("Don't remove Space and Tab from the start of every line")
+                .takes_value(false),
+        )
+        .arg(
+            Arg::with_name("nooptimize")
+                .long("no-optimize")
+                .value_name("nooptimize")
+                .help("Don't try to reduce performance hit with `--authuser`")
+                .takes_value(false),
+        )
+        .arg(
             Arg::with_name("flush-line")
                 .short("f")
                 .long("flush-line")
@@ -88,6 +111,18 @@ fn main() {
 
     if cli_arguments.is_present("flush-line") {
         config.set_flush(true);
+    }
+
+    if cli_arguments.is_present("authuser") {
+        config.set_authuser(true);
+    }
+
+    if cli_arguments.is_present("notrim") {
+        config.set_trim(false);
+    }
+
+    if cli_arguments.is_present("nooptimize") {
+        config.set_optimize(false);
     }
 
     if cli_arguments.is_present("skip-invalid") {

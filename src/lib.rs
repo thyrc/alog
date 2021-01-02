@@ -3,8 +3,15 @@
 //!
 //! ## About
 //!
-//! In fact `alog` just replaces the first *word*[^1] on every line of any input stream with a
-//! customizable string.
+//! In fact by default `alog` just replaces the first *word* on every line of any input stream
+//! with a customizable string.
+//!
+//! With version 0.6 you can (at a substantial cost of CPU cycles) replace the `$remote_user`
+//! with `"-"` ([`Config::authuser`] set to `true`) as well. Defaults to `false`.
+//!
+//! With [`Config::trim`] set to `false` the first *word* can be the (zero width)
+//! anchor ^ or a single `b' '` (Space) separated by a `b' '` from the remainder of the line.
+//! This was the default behaviour prior to version 0.6.
 //!
 //! So "log file anonymizer" might be a bit of an overstatement, but `alog` can be used to (very
 //! efficiently) replace the `$remote_addr` part in many access log formats, e.g. Nginx' default
@@ -18,15 +25,16 @@
 //!
 //! By default any parseable `$remote_addr` is replaced by it's *localhost* representation,
 //!
-//! * any valid IPv4 address is replaced by '127.0.0.1',
-//! * any valid IPv6 address is replaced by '::1' and
-//! * any String (what might be a domain name) with 'localhost'.
+//! * any valid IPv4 address is replaced by *127.0.0.1*,
+//! * any valid IPv6 address is replaced by *::1* and
+//! * any String (what might be a domain name) with *localhost*.
 //!
-//! Lines without a `$remote_addr` part will remain unchanged (but can be skipped with
-//! [`alog::Config::set_skip()`] set to `true`).
+//! Lines without a 'first word' will remain unchanged (but can be skipped with [`Config::skip`]
+//! set to `true`).
 //!
-//! [^1]: Any first substring *or* (zero width) anchor `^` separated by a `b' '` (Space) from the
-//! remainder of the line.
+//! Starting with version 0.6 all Space and Tabulator (`b'\t'`) characters will be removed from
+//! the beginning of each line before replacing any `$remote_addr` by default. To switch back to
+//! the previous behaviour just set [`Config::trim`] to `false`.
 //!
 //! ### Personal data in server logs
 //!
@@ -42,12 +50,12 @@
 //! service uses them as part of their URL structure, and even the referral information that’s
 //! logged by default **can** contain personal information (or other sensitive data).
 //!
-//! So keep in mind, just removing the IP / `$remote_addr` part might not be enough to fully
-//! anonymize any given log file.
+//! So keep in mind, just removing the IP / `$remote_addr` or `$remote_user` part might not be
+//! enough to fully anonymize any given log file.
 //!
 //! [GDPR]: https://gdpr.eu/article-4-definitions/
-//! [`alog::Config::set_skip()`]: ./struct.Config.html#method.set_skip
 
+use std::cmp::Ordering;
 use std::fs::File;
 use std::fs::OpenOptions;
 use std::io::{self, BufRead, BufReader, BufWriter, Write};
@@ -55,16 +63,30 @@ use std::net;
 use std::path::Path;
 use std::process;
 
+use regex::bytes::Regex;
+
+#[macro_use(lazy_static)]
+extern crate lazy_static;
+
+lazy_static! {
+    // $remote_user *can* contain whitespaces, so we search for the 'next'
+    // field (`$time_local`) instead
+    static ref RE: Regex = Regex::new(" \\[[0-9]{1,2}/").unwrap();
+}
+
 /// INPUT / OUTPUT config
 #[derive(Debug)]
 pub struct IOConfig<'a> {
     /// List of input paths / files, e.g. Some(vec![Path::new("/tmp/test1.log"), Path::new("/tmp/test2.log")])
+    /// If set to `None` the reader will read from Stdin.
     input: Option<Vec<&'a Path>>,
     /// Single output path / file
+    /// If set to `None` the writer will write to Stdout.
     output: Option<&'a Path>,
 }
 
 /// Collection of replacement strings / config flags
+#[allow(clippy::struct_excessive_bools)]
 #[derive(Debug)]
 pub struct Config<'a> {
     /// IPv4-parseable `$remote_addr` replacement string
@@ -75,6 +97,13 @@ pub struct Config<'a> {
     pub host: &'a str,
     /// Skip lines w/o a `$remote_addr` part / first word
     pub skip: bool,
+    /// Try to clear the authuser field
+    pub authuser: bool,
+    /// Trim spaces from the start of every line
+    pub trim: bool,
+    /// Don't clear authuser fields starting with "- ["
+    /// We assume these fields are already cleared.
+    pub optimize: bool,
     /// Flush output after each line
     pub flush: bool,
 }
@@ -89,7 +118,7 @@ impl<'a> Default for IOConfig<'a> {
     }
 }
 
-/// defaults to an equivalent of *localhost*
+/// `$remote_addr` replacements default to an equivalent of *localhost*
 impl<'a> Default for Config<'a> {
     fn default() -> Self {
         Config {
@@ -97,6 +126,9 @@ impl<'a> Default for Config<'a> {
             ipv6: "::1",
             host: "localhost",
             skip: false,
+            authuser: false,
+            trim: true,
+            optimize: true,
             flush: false,
         }
     }
@@ -127,6 +159,21 @@ impl<'a> Config<'a> {
         self.skip
     }
 
+    /// Get `authuser` value
+    pub fn get_authuser(&self) -> bool {
+        self.authuser
+    }
+
+    /// Get `trim` value
+    pub fn get_trim(&self) -> bool {
+        self.trim
+    }
+
+    /// Get `optimize` value
+    pub fn get_optimize(&self) -> bool {
+        self.optimize
+    }
+
     /// Get `flush` value
     pub fn get_flush(&self) -> bool {
         self.flush
@@ -150,6 +197,21 @@ impl<'a> Config<'a> {
     /// Set `flush` field
     pub fn set_flush(&mut self, b: bool) {
         self.flush = b;
+    }
+
+    /// Set `authuser` field
+    pub fn set_authuser(&mut self, b: bool) {
+        self.authuser = b;
+    }
+
+    /// Set `trim` field
+    pub fn set_trim(&mut self, b: bool) {
+        self.trim = b;
+    }
+
+    /// Set `optimize` field
+    pub fn set_optimize(&mut self, b: bool) {
+        self.optimize = b;
     }
 
     /// Set `skip` field
@@ -193,9 +255,9 @@ impl<'a> IOConfig<'a> {
 /// remainder of the line by a b' ' (Space) byte) this word will be replaced
 ///
 /// Any word, that can be parsed as
-/// * [`std::net::Ipv4Addr`] will be replaced with [`alog::Config::get_ipv4_value()`],
-/// * [`std::net::Ipv6Addr`] will be replaced with [`alog::Config::get_ipv6_value()`],
-/// * any other *word* will be replaced with [`alog::Config::get_host_value()`].
+/// * [`std::net::Ipv4Addr`] will be replaced with [`alog::Config::ipv4`],
+/// * [`std::net::Ipv6Addr`] will be replaced with [`alog::Config::ipv6`],
+/// * any other *word* will be replaced with [`alog::Config::host`].
 ///
 /// Any line without a 'first word' will be written as is if [`alog::Config::get_skip()`] returns
 /// `false` (default), or will be skipped otherwise.
@@ -220,7 +282,15 @@ fn replace_remote_address<R: BufRead, W: Write>(
         if bytes_read == 0 {
             break;
         } else {
-            for (i, byte) in buf.iter().enumerate() {
+            #[allow(clippy::match_wildcard_for_single_variants)]
+            if config.get_trim() {
+                let s = match buf.iter().position(|&x| x != b' ' && x != b'\t') {
+                    Some(s) => s,
+                    _ => 0,
+                };
+                buf.drain(..s);
+            }
+            for (i, byte) in buf[..].iter().enumerate() {
                 if *byte == b' ' {
                     if String::from_utf8_lossy(&buf[..i])
                         .parse::<net::Ipv4Addr>()
@@ -235,7 +305,24 @@ fn replace_remote_address<R: BufRead, W: Write>(
                     } else {
                         write!(&mut writer, "{}", config.get_host_value())?;
                     }
-                    writer.write_all(&buf[i..])?;
+                    if config.get_authuser() {
+                        // trying to avoid the regex' overhead
+                        match &buf[i + 3..i + 6].iter().cmp(b"- [") {
+                            Ordering::Equal if config.get_optimize() => {
+                                writer.write_all(&buf[i..])?
+                            }
+                            _ => {
+                                if let Some(time_field) = RE.find_at(&buf, i) {
+                                    write!(&mut writer, " - -")?;
+                                    writer.write_all(&buf[time_field.start()..])?;
+                                } else {
+                                    writer.write_all(&buf[i..])?;
+                                }
+                            }
+                        }
+                    } else {
+                        writer.write_all(&buf[i..])?;
+                    }
                     if config.get_flush() {
                         writer.flush()?;
                     }
@@ -255,13 +342,12 @@ fn replace_remote_address<R: BufRead, W: Write>(
 }
 
 /// Creates a reader (defaults to [`std::io::Stdin`]) and writer (defaults to [`std::io::Stdout`])
-/// from [`alog::IOConfig`], passes both along with the [`alog::Config`] struct to actually replace
+/// from [`alog::IOConfig`] and uses both along with [`alog::Config`] to actually replace
 /// any first *word* in `reader` with strings stored in [`alog::Config`].
 ///
 /// ## Errors
 ///
-/// Exits when [`alog::IOConfig::get_output()`] already exists or the new reader / writer retruns
-/// an error.
+/// Exits when the output already exists or the new reader / writer retruns an error.
 ///
 /// ## Example
 ///
@@ -429,6 +515,19 @@ mod tests {
         assert_eq!(&buffer.into_inner(), &local_log);
     }
 
+    #[test]
+    fn clear_authuser() {
+        use std::io::Cursor;
+        let mut buffer = Cursor::new(vec![]);
+        let log = Box::new("8.8.8.8 - frank [10/Oct/2000:13:55:36 -0700] \"GET /apache_pb.gif HTTP/1.0\" 200 2326 \"http://www.example.com/start.html\" \"Mozilla/4.08 [en] (Win98; I ;Nav)\"".as_bytes());
+        let local_log = "127.0.0.1 - - [10/Oct/2000:13:55:36 -0700] \"GET /apache_pb.gif HTTP/1.0\" 200 2326 \"http://www.example.com/start.html\" \"Mozilla/4.08 [en] (Win98; I ;Nav)\"".as_bytes();
+
+        let mut conf = Config::default();
+        conf.set_authuser(true);
+
+        replace_remote_address(&conf, log, &mut buffer).unwrap();
+        assert_eq!(&buffer.into_inner(), &local_log);
+    }
     #[test]
     fn replace_custom_ipv4() {
         use std::io::Cursor;

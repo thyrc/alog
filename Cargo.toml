@@ -1,10 +1,11 @@
 [package]
 edition = "2018"
 name = "alog"
-version = "0.5.10"
+version = "0.6.0"
 authors = ["thyrc <thyrc@users.noreply.github.com>"]
 description = "Anonymize 'Combined Log Format' data"
 license = "MIT"
+homepage = "https://crates.io/crates/alog"
 repository = "https://github.com/thyrc/alog"
 documentation="https://docs.rs/alog/"
 readme = "README.md"
@@ -24,7 +25,9 @@ lto = true
 debug = true
 
 [dependencies]
-clap = { version = "2.33.0", optional = true }
+clap = { version = "2.33", optional = true }
+lazy_static = "1.4"
+regex = { version = "1.4", default-features = false, features = ["std", "perf-cache"] }
 
 [lib]
 name = "alog"

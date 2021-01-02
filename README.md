@@ -1,5 +1,4 @@
-alog
-====
+# alog
 
 [![Build Status](https://travis-ci.com/thyrc/alog.svg?branch=master)](https://travis-ci.com/thyrc/alog)
 [![CI](https://github.com/thyrc/alog/workflows/Rust/badge.svg)](https://github.com/thyrc/alog/actions?query=workflow%3ARust)
@@ -8,11 +7,15 @@ alog
 
 `alog` is a simple log file anonymizer.
 
-About
------
+## About
 
-In fact `alog` just replaces the first *word*[^1] on every line of any input stream with a
-customizable string.
+In fact by default `alog` just replaces the first *word* on every line of any input stream
+with a customizable string.
+
+With version 0.6
+
+* you can (at a substantial cost of CPU cycles) replace the `$remote_user` with '-' as well and
+* by default any leading Spaces or Tabs will be removed from every line before replacing any `$remote_addr`.
 
 So "log file anonymizer" might be a bit of an overstatement, but `alog` can be used to (very
 efficiently) replace the $remote_addr part in many access log formats, e.g. Nginx' default
@@ -24,44 +27,36 @@ log_format combined '$remote_addr - $remote_user [$time_local] '
                     '"$http_referer" "$http_user_agent"';
 ```
 
-By default any parseable $remote_addr is replaced by it's *localhost* representation,
+By default any parseable `$remote_addr` is replaced by it's *localhost* representation,
 
-* any valid IPv4 address is replaced by '127.0.0.1',
-* any valid IPv6 address is replaced by '::1' and
-* any String (what might be a domain name) with 'localhost'.
+* any valid IPv4 address is replaced by *127.0.0.1*,
+* any valid IPv6 address is replaced by *::1* and
+* any String (what might be a domain name) with *localhost*.
 
-Lines without a $remote_addr part will remain unchanged (but can be skipped with
-[`alog::Config::set_skip()`] set to `true`).
+Lines without a `$remote_addr` part will remain unchanged (but can be skipped).
 
-[^1]: Any first substring *or* (zero width) anchor `^` separated by a `b' '` (Space) from the 
-remainder of the line.
-
-Building alog
-=============
+## Building alog
 
 With version 0.3 `[features]` where added, so that the library crate won't pull unneeded
 dependencies anymore.
 
-Commandline Tool
-----------------
+### Commandline Tool
 
 To build the `alog` commandline tool you now have to expicitly add `--features`.
-
 
 ```shell
 cargo build --features alog-cli
 ```
-or 
+
+or
 
 ```shell
 cargo build --all-features
 ```
 
-Usage
-=====
+## Usage
 
-Commandline tool
-----------------
+### Commandline tool
 
 Run cli-tool with `--help`.
 
@@ -69,8 +64,7 @@ Run cli-tool with `--help`.
 ./target/release/alog --help
 ```
 
-Library
--------
+### Library
 
 Calling `run()`
 
@@ -111,14 +105,34 @@ fn main() {
 }
 ```
 
-Project status
---------------
+## About `Config::authuser`
+
+With version 0.6 `alog` can be used to replace the `$remote_user` field with '-', but this
+feature comes with a couple of peculiarities.
+
+This feature should work fine with standard Common / Combined Log formatted files, but...
+
+* There will be a significant hit on performance (synthetic benchmarking suggests 160MB/s
+  instead of 400MB/s on my machine, but still better than Perl's 30MB/s ;)
+* Used with `Config::trim` set to `false` and malformatted files the performance hit will be
+  even worse and removal of the `$remote_user` field will fail altogether if no `$time_local`
+  field is found.
+* The `$time_local` field is expected to start with '[' followed by a decimal number. E.g.:
+  "[10/Oct/2000:13:55:36 -0700]"
+* There is an optimization in place to reduce the performance hit with real-life log files,
+  but this leads to `$remote_user` fields *starting* with "- [" _not_ being replaced! So in
+  
+  `"8.8.8.8 - - [frank] [10/Oct/2000:13:55:36 -0700] GET /apache_pb.gif HTTP/1.0 200 2326"`
+
+  "frank" will still be "frank". This optimization can be disabled.
+
+## Project status
 
 `alog` started as a replacement for a <10 line Perl script running on an old backup host.
 So nothing shiny.. but it helped me learning some Rust (and crates.io) basics.
 
-With version 0.5.6 I consider `alog` feature complete. It doesn't do much, but it does it 
-quite well. At some point I might re-use this crate to add parallel processing or try
-harder to actually anonymize data. But for now, this is it.
+With version 0.6 `alog` is feature complete. It doesn't do much, but it does it quite well.
+At some point I might re-use this crate and try harder to actually anonymize data. But for
+now, this is it.
 
 I will still fix bugs when (and if) I find them, so `alog` is now passively-maintained.
