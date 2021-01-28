@@ -18,7 +18,7 @@ With version 0.6
 * by default any leading Spaces or Tabs will be removed from every line before replacing any `$remote_addr`.
 
 So "log file anonymizer" might be a bit of an overstatement, but `alog` can be used to (very
-efficiently) replace the $remote_addr part in many access log formats, e.g. Nginx' default
+efficiently) replace the `$remote_addr` part in many access log formats, e.g. Nginx' default
 combined log format:
 
 ```text
@@ -112,8 +112,8 @@ feature comes with a couple of peculiarities.
 
 This feature should work fine with standard Common / Combined Log formatted files, but...
 
-* There will be a significant hit on performance (synthetic benchmarking suggests 160MB/s
-  instead of 400MB/s on my machine, but still better than Perl's 30MB/s ;)
+* There will be a significant hit on performance (synthetic benchmarking suggests ~625MB/s
+  instead of ~1100MB/s on my machine, but still better than Perl's ~115MB/s ;)
 * Used with `Config::trim` set to `false` and malformatted files the performance hit will be
   even worse and removal of the `$remote_user` field will fail altogether if no `$time_local`
   field is found.

@@ -528,6 +528,7 @@ mod tests {
         replace_remote_address(&conf, log, &mut buffer).unwrap();
         assert_eq!(&buffer.into_inner(), &local_log);
     }
+
     #[test]
     fn replace_custom_ipv4() {
         use std::io::Cursor;

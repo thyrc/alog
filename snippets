@@ -1,19 +1,40 @@
-wc -l /tmp/test.log
-10000000 ./test.log
+# alog Performance
 
-###
+$ wc -l access.log
+25000000 access.log
 
-## rust
+# Memory
 
-# static
-./target/release/alog /tmp/test.log > /dev/null  2.29s user 0.33s system 99% cpu 2.621 total
-mapped: 832K    writeable/private: 212K    shared: 0K
+## Perl
 
-# shared
-./target/release/alog /tmp/test.log > /dev/null  2.39s user 0.42s system 99% cpu 2.817 total
-mapped: 1580K    writeable/private: 196K    shared: 0K
+mapped: 4932K    writeable/private: 888K    shared: 0K
 
-## perl
+## Rust
 
-perl anon.pl /tmp/test.log >/dev/null  18.85s user 0.39s system 99% cpu 19.249 total
-mapped: 4744K    writeable/private: 724K    shared: 0K
+mapped: 1960K    writeable/private: 224K    shared: 0K
+
+# Time / Throughput
+
+## Perl
+
+$ time cat access.log |perl ./anon.pl >/dev/null
+perl anon.pl > /dev/null  68.82s user 17.60s system 99% cpu 1:26.46 total
+
+~115MB/s
+
+## Rust
+
+$ time cat access.log |./alog >/dev/null
+./alog > /dev/null  6.89s user 1.68s system 99% cpu 8.589 total
+
+~1100MB/s
+
+$ time cat access.log |./alog -a >/dev/null
+./alog -a > /dev/null  7.05s user 1.59s system 99% cpu 8.673 total
+
+~1100MB/s
+
+$ time cat access.log |./alog --no-optimize -a >/dev/null
+./alog --no-optimize -a > /dev/null  13.53s user 1.65s system 99% cpu 15.226 total
+
+~625MB/s
