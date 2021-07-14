@@ -281,15 +281,16 @@ fn replace_remote_address<R: BufRead, W: Write>(
         let bytes_read = reader.read_until(b'\n', &mut buf)?;
         if bytes_read == 0 {
             break;
-        } else {
-            #[allow(clippy::match_wildcard_for_single_variants)]
-            if config.get_trim() {
-                let s = match buf.iter().position(|&x| x != b' ' && x != b'\t') {
-                    Some(s) => s,
-                    _ => 0,
-                };
-                buf.drain(..s);
-            }
+        }
+
+        #[allow(clippy::match_wildcard_for_single_variants)]
+        if config.get_trim() {
+            let s = match buf.iter().position(|&x| x != b' ' && x != b'\t') {
+                Some(s) => s,
+                _ => 0,
+            };
+            buf.drain(..s);
+
             for (i, byte) in buf[..].iter().enumerate() {
                 if *byte == b' ' {
                     if String::from_utf8_lossy(&buf[..i])
@@ -402,7 +403,13 @@ pub fn run(config: &Config, ioconfig: &IOConfig) {
                 Err(e) => {
                     eprintln!("Error reading file '{}': {}.", arg.display(), e);
                     if let Some(output) = ioconfig.get_output() {
-                        std::fs::remove_file(Path::new(output)).unwrap();
+                        if let Err(e) = std::fs::remove_file(Path::new(output)) {
+                            eprintln!(
+                                "Counld not remove output file '{}': {}",
+                                output.display(),
+                                e
+                            );
+                        }
                     }
                     process::exit(1);
                 }
@@ -411,7 +418,13 @@ pub fn run(config: &Config, ioconfig: &IOConfig) {
             if let Err(e) = replace_remote_address(config, reader, &mut writer) {
                 eprintln!("Error: {}", e);
                 if let Some(output) = ioconfig.get_output() {
-                    std::fs::remove_file(Path::new(output)).unwrap();
+                    if let Err(e) = std::fs::remove_file(Path::new(output)) {
+                        eprintln!(
+                            "Counld not remove output file '{}': {}",
+                            output.display(),
+                            e
+                        );
+                    }
                 }
                 process::exit(1);
             }
@@ -422,7 +435,13 @@ pub fn run(config: &Config, ioconfig: &IOConfig) {
         if let Err(e) = replace_remote_address(config, reader, &mut writer) {
             eprintln!("Error: {}", e);
             if let Some(output) = ioconfig.get_output() {
-                std::fs::remove_file(Path::new(output)).unwrap();
+                if let Err(e) = std::fs::remove_file(Path::new(output)) {
+                    eprintln!(
+                        "Counld not remove output file '{}': {}",
+                        output.display(),
+                        e
+                    );
+                }
             }
             process::exit(1);
         }
