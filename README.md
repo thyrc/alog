@@ -1,7 +1,6 @@
 # alog
 
 [![Crates.io](https://img.shields.io/crates/v/alog.svg)](https://crates.io/crates/alog)
-[![Build Status](https://travis-ci.com/thyrc/alog.svg?branch=master)](https://travis-ci.com/thyrc/alog)
 [![CI](https://github.com/thyrc/alog/workflows/Rust/badge.svg)](https://github.com/thyrc/alog/actions?query=workflow%3ARust)
 [![Documentation](https://docs.rs/alog/badge.svg)](https://docs.rs/alog)
 [![GitHub license](https://img.shields.io/github/license/thyrc/alog.svg)](https://github.com/thyrc/alog/blob/master/LICENSE)
