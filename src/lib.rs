@@ -141,17 +141,17 @@ impl<'a> Config<'a> {
 
     /// Get IPv4 replacement value
     pub fn get_ipv4_value(&self) -> &'a str {
-        &self.ipv4
+        self.ipv4
     }
 
     /// Get IPv6 replacement value
     pub fn get_ipv6_value(&self) -> &'a str {
-        &self.ipv6
+        self.ipv6
     }
 
     /// Get string replacement value
     pub fn get_host_value(&self) -> &'a str {
-        &self.host
+        self.host
     }
 
     /// Get `skip` value
@@ -310,7 +310,7 @@ fn replace_remote_address<R: BufRead, W: Write>(
                         // trying to avoid the regex' overhead
                         match &buf[i + 3..i + 6].iter().cmp(b"- [") {
                             Ordering::Equal if config.get_optimize() => {
-                                writer.write_all(&buf[i..])?
+                                writer.write_all(&buf[i..])?;
                             }
                             _ => {
                                 if let Some(time_field) = RE.find_at(&buf, i) {
