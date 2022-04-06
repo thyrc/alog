@@ -25,9 +25,9 @@
 //!
 //! By default any parseable `$remote_addr` is replaced by it's *localhost* representation,
 //!
-//! * any valid IPv4 address is replaced by *127.0.0.1*,
-//! * any valid IPv6 address is replaced by *::1* and
-//! * any String (what might be a domain name) with *localhost*.
+//! * any valid IPv4 address is replaced by `127.0.0.1`,
+//! * any valid IPv6 address is replaced by `::1` and
+//! * any String (what might be a domain name) with `localhost`.
 //!
 //! Lines without a 'first word' will remain unchanged (but can be skipped with [`Config::skip`]
 //! set to `true`).
