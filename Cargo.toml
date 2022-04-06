@@ -20,7 +20,7 @@ exclude = [
 opt-level = "z"
 panic = "abort"
 lto = true
-strip = "symbols"
+debug = true
 codegen-units = 1
 
 [dependencies]
