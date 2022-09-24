@@ -1,8 +1,8 @@
-extern crate clap;
-
-use clap::{Arg, Command};
+use clap::{builder::ValueParser, Arg, Command};
+use std::ffi::OsString;
 use std::path::Path;
 
+#[allow(clippy::too_many_lines)]
 fn main() {
     let default_config = alog::Config::default();
     let mut config = alog::Config::default();
@@ -16,7 +16,7 @@ fn main() {
                 .short('4')
                 .long("ipv4-replacement")
                 .value_name("ipv4-replacement")
-                .default_value(&default_config.get_ipv4_value())
+                .default_value(default_config.get_ipv4_value())
                 .help("Sets IPv4 replacement string")
                 .takes_value(true),
         )
@@ -25,7 +25,7 @@ fn main() {
                 .short('6')
                 .long("ipv6-replacement")
                 .value_name("ipv6-replacement")
-                .default_value(&default_config.get_ipv6_value())
+                .default_value(default_config.get_ipv6_value())
                 .help("Sets IPv6 replacement string")
                 .takes_value(true),
         )
@@ -33,7 +33,7 @@ fn main() {
             Arg::new("host-replacement")
                 .long("host-replacement")
                 .value_name("host-replacement")
-                .default_value(&default_config.get_host_value())
+                .default_value(default_config.get_host_value())
                 .help("Sets host replacement string")
                 .takes_value(true),
         )
@@ -82,6 +82,7 @@ fn main() {
                 .long("output")
                 .value_name("FILE")
                 .help("Sets output file")
+                .value_parser(ValueParser::os_string())
                 .takes_value(true),
         )
         .arg(
@@ -89,53 +90,68 @@ fn main() {
                 .value_name("INPUT")
                 .help("The input file(s) to use")
                 .index(1)
-                .allow_invalid_utf8(true)
+                .value_parser(ValueParser::os_string())
                 .multiple_values(true),
         )
         .get_matches();
 
-    if let Some(ipv4) = cli_arguments.value_of("ipv4-replacement") {
+    if let Some(ipv4) = cli_arguments
+        .get_one::<String>("ipv4-replacement")
+        .map(std::string::String::as_str)
+    {
         config.set_ipv4_value(ipv4);
     }
 
-    if let Some(ipv6) = cli_arguments.value_of("ipv6-replacement") {
+    if let Some(ipv6) = cli_arguments
+        .get_one::<String>("ipv6-replacement")
+        .map(std::string::String::as_str)
+    {
         config.set_ipv6_value(ipv6);
     }
 
-    if let Some(host) = cli_arguments.value_of("host-replacement") {
+    if let Some(host) = cli_arguments
+        .get_one::<String>("host-replacement")
+        .map(std::string::String::as_str)
+    {
         config.set_host_value(host);
     }
 
-    if let Some(ipv4) = cli_arguments.value_of("ipv4-replacement") {
+    if let Some(ipv4) = cli_arguments
+        .get_one::<String>("ipv4-replacement")
+        .map(std::string::String::as_str)
+    {
         config.set_ipv4_value(ipv4);
     }
 
-    if cli_arguments.is_present("flush-line") {
+    if cli_arguments.contains_id("flush-line") {
         config.set_flush(true);
     }
 
-    if cli_arguments.is_present("authuser") {
+    if cli_arguments.contains_id("authuser") {
         config.set_authuser(true);
     }
 
-    if cli_arguments.is_present("notrim") {
+    if cli_arguments.contains_id("notrim") {
         config.set_trim(false);
     }
 
-    if cli_arguments.is_present("nooptimize") {
+    if cli_arguments.contains_id("nooptimize") {
         config.set_optimize(false);
     }
 
-    if cli_arguments.is_present("skip-invalid") {
+    if cli_arguments.contains_id("skip-invalid") {
         config.set_skip(true);
     }
 
-    if let Some(output) = cli_arguments.value_of_os("output") {
+    if let Some(output) = cli_arguments
+        .get_one::<OsString>("output")
+        .map(std::ffi::OsString::as_os_str)
+    {
         ioconfig.set_output(Path::new(output));
     }
 
-    if let Some(input) = cli_arguments.values_of_os("input") {
-        for file in input {
+    if let Some(input) = cli_arguments.get_many::<OsString>("input") {
+        for file in input.collect::<Vec<_>>() {
             ioconfig.push_input(file);
         }
     }
