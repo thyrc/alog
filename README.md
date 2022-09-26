@@ -69,8 +69,6 @@ Run cli-tool with `--help`.
 Calling `run()`
 
 ```rust
-extern crate alog;
-
 fn main() {
     let mut io_conf = alog::IOConfig::default();
     let mut conf = alog::Config::default();
@@ -78,28 +76,31 @@ fn main() {
     io_conf.push_input("/tmp/test.log");
     conf.set_ipv4_value("0.0.0.0");
 
-    alog::run(&conf, &io_conf);
+    if let Err(e) = alog::run(&conf, &io_conf) {
+        eprintln!("{}", e);
+    }
+
 }
 ```
 
 or `run_raw()`
 
 ```rust
-extern crate alog;
-
 use std::io::Cursor;
 
 fn main() {
     let mut buffer = vec![];
 
-    alog::run_raw(
+    if let Err(e) = alog::run_raw(
         &alog::Config {
             ipv4: "XXX",
             ..Default::default()
         },
         Cursor::new(b"8.8.8.8 test line"),
         &mut buffer,
-    );
+    ) {
+        eprintln!("{}", e);
+    }
 
     assert_eq!(buffer, b"XXX test line");
 }

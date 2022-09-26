@@ -11,6 +11,37 @@ fn main() {
     let cli_arguments = Command::new(env!("CARGO_PKG_NAME"))
         .version(env!("CARGO_PKG_VERSION"))
         .about("Mangle common / combined logs")
+        .override_help(
+            format!(
+                "{} {}
+Mangle common / combined logs
+
+USAGE:
+    alog [FLAGS] [OPTIONS] [INPUT]...
+
+FLAGS:
+    -a, --authuser        Clear authuser
+    -f, --flush-line      Flush output on every line
+        --no-optimize     Don't try to reduce performance hit with `--authuser`
+    -n, --notrim          Don't remove Space and Tab from the start of every line
+    -s, --skip-invalid    Skip invalid lines
+
+    -h, --help            Print this message
+    -V, --version         Print version information
+
+OPTIONS:
+        --host-replacement <host-replacement>    Sets host replacement string [default: localhost]
+    -4, --ipv4-replacement <ipv4-replacement>    Sets IPv4 replacement string [default: 127.0.0.1]
+    -6, --ipv6-replacement <ipv6-replacement>    Sets IPv6 replacement string [default: ::1]
+    -o, --output <FILE>                          Sets output file
+
+ARGS:
+    <INPUT>...    The input file(s) to use",
+                env!("CARGO_PKG_NAME"),
+                env!("CARGO_PKG_VERSION")
+            )
+            .as_str(),
+        )
         .arg(
             Arg::new("ipv4-replacement")
                 .short('4')
@@ -41,7 +72,6 @@ fn main() {
             Arg::new("skip-invalid")
                 .short('s')
                 .long("skip-invalid")
-                .value_name("skip-invalid")
                 .help("Skip invalid lines")
                 .takes_value(false),
         )
@@ -49,7 +79,6 @@ fn main() {
             Arg::new("authuser")
                 .short('a')
                 .long("authuser")
-                .value_name("authuser")
                 .help("Clear authuser")
                 .takes_value(false),
         )
@@ -57,14 +86,14 @@ fn main() {
             Arg::new("notrim")
                 .short('n')
                 .long("notrim")
-                .value_name("no-trim")
+                .requires("authuser")
                 .help("Don't remove Space and Tab from the start of every line")
                 .takes_value(false),
         )
         .arg(
             Arg::new("nooptimize")
                 .long("no-optimize")
-                .value_name("nooptimize")
+                .requires("authuser")
                 .help("Don't try to reduce performance hit with `--authuser`")
                 .takes_value(false),
         )
@@ -72,7 +101,6 @@ fn main() {
             Arg::new("flush-line")
                 .short('f')
                 .long("flush-line")
-                .value_name("flush-line")
                 .help("Flush output on every line")
                 .takes_value(false),
         )
@@ -156,5 +184,8 @@ fn main() {
         }
     }
 
-    alog::run(&config, &ioconfig);
+    if let Err(e) = alog::run(&config, &ioconfig) {
+        eprintln!("Error: {}", e);
+        std::process::exit(1);
+    };
 }

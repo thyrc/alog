@@ -56,12 +56,10 @@
 //! [GDPR]: https://gdpr.eu/article-4-definitions/
 
 use std::cmp::Ordering;
-use std::fs::File;
-use std::fs::OpenOptions;
+use std::fs::{File, OpenOptions};
 use std::io::{self, BufRead, BufReader, BufWriter, Write};
-use std::net;
 use std::path::Path;
-use std::process;
+use std::{fmt, net};
 
 use regex::bytes::Regex;
 
@@ -72,6 +70,25 @@ lazy_static! {
     // $remote_user *can* contain whitespaces, so we search for the 'next'
     // field (`$time_local`) instead
     static ref RE: Regex = Regex::new(" \\[[0-9]{1,2}/").unwrap();
+}
+
+#[derive(Debug)]
+pub struct IOError {
+    message: String,
+}
+
+impl fmt::Display for IOError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}", self.message)
+    }
+}
+
+impl From<io::Error> for IOError {
+    fn from(error: io::Error) -> Self {
+        IOError {
+            message: error.to_string(),
+        }
+    }
 }
 
 /// INPUT / OUTPUT config
@@ -273,7 +290,7 @@ fn replace_remote_address<R: BufRead, W: Write>(
     config: &Config,
     mut reader: R,
     mut writer: W,
-) -> Result<(), std::io::Error> {
+) -> Result<(), io::Error> {
     let mut buf = vec![];
 
     'lines: loop {
@@ -285,7 +302,7 @@ fn replace_remote_address<R: BufRead, W: Write>(
 
         #[allow(clippy::match_wildcard_for_single_variants)]
         if config.get_trim() {
-            let s = match buf.iter().position(|&x| x != b' ' && x != b'\t') {
+            let s = match buf.iter().position(|&x| !x.is_ascii_whitespace()) {
                 Some(s) => s,
                 _ => 0,
             };
@@ -346,15 +363,15 @@ fn replace_remote_address<R: BufRead, W: Write>(
 /// from [`alog::IOConfig`] and uses both along with [`alog::Config`] to actually replace
 /// any first *word* in `reader` with strings stored in [`alog::Config`].
 ///
+/// Appends data if the writer points to an existing, writeable file.
+///
 /// ## Errors
 ///
-/// Exits when the output already exists or the new reader / writer retruns an error.
+/// Returns an error if the new reader / writer retruns an error.
 ///
 /// ## Example
 ///
 /// ```[no_run]
-/// extern crate alog;
-///
 /// fn main() {
 ///     alog::run(
 ///         &alog::Config {
@@ -362,7 +379,7 @@ fn replace_remote_address<R: BufRead, W: Write>(
 ///             ..Default::default()
 ///         },
 ///         &alog::IOConfig::default()
-///     );
+///     ).unwrap();
 /// }
 /// ```
 ///
@@ -373,20 +390,21 @@ fn replace_remote_address<R: BufRead, W: Write>(
 /// [`std::io::Stdout`]: https://doc.rust-lang.org/std/io/struct.Stdout.html
 /// [`std::net::Ipv4Addr`]: https://doc.rust-lang.org/std/net/struct.Ipv4Addr.html
 /// [`std::net::Ipv6Addr`]: https://doc.rust-lang.org/std/net/struct.Ipv6Addr.html
-pub fn run(config: &Config, ioconfig: &IOConfig) {
+pub fn run(config: &Config, ioconfig: &IOConfig) -> Result<(), IOError> {
     // Set writer
     let stdout = io::stdout();
     let mut writer: Box<dyn Write> = match ioconfig.get_output() {
         Some(output) => {
-            let f = OpenOptions::new()
-                .write(true)
-                .create_new(true)
-                .open(Path::new(output));
-            let f = match f {
-                Ok(file) => file,
+            let f = match OpenOptions::new()
+                .create(true)
+                .append(true)
+                .open(Path::new(output))
+            {
+                Ok(f) => f,
                 Err(e) => {
-                    eprintln!("Error writing to file {}: {}.", output.display(), e);
-                    std::process::exit(1);
+                    return Err(IOError {
+                        message: format!("Can not open output '{}': {}", output.display(), e),
+                    })
                 }
             };
             Box::new(BufWriter::new(f)) as _
@@ -397,55 +415,33 @@ pub fn run(config: &Config, ioconfig: &IOConfig) {
     // Set reader
     if let Some(input) = ioconfig.get_input() {
         for arg in input {
-            let f = File::open(Path::new(arg));
-            let f = match f {
-                Ok(file) => file,
+            match File::open(Path::new(arg)) {
                 Err(e) => {
-                    eprintln!("Error reading file '{}': {}.", arg.display(), e);
-                    if let Some(output) = ioconfig.get_output() {
-                        if let Err(e) = std::fs::remove_file(Path::new(output)) {
-                            eprintln!(
-                                "Counld not remove output file '{}': {}",
-                                output.display(),
-                                e
-                            );
-                        }
-                    }
-                    process::exit(1);
+                    return Err(IOError {
+                        message: format!("Can not open input '{}': {}", arg.display(), e),
+                    })
                 }
-            };
-            let reader: Box<dyn BufRead> = Box::new(BufReader::new(f));
-            if let Err(e) = replace_remote_address(config, reader, &mut writer) {
-                eprintln!("Error: {}", e);
-                if let Some(output) = ioconfig.get_output() {
-                    if let Err(e) = std::fs::remove_file(Path::new(output)) {
-                        eprintln!(
-                            "Counld not remove output file '{}': {}",
-                            output.display(),
-                            e
-                        );
+                Ok(f) => {
+                    let reader: Box<dyn BufRead> = Box::new(BufReader::new(f));
+                    if let Err(e) = replace_remote_address(config, reader, &mut writer) {
+                        return Err(IOError {
+                            message: e.to_string(),
+                        });
                     }
                 }
-                process::exit(1);
             }
         }
     } else {
         let stdin = io::stdin();
         let reader: Box<dyn BufRead> = Box::new(stdin.lock());
         if let Err(e) = replace_remote_address(config, reader, &mut writer) {
-            eprintln!("Error: {}", e);
-            if let Some(output) = ioconfig.get_output() {
-                if let Err(e) = std::fs::remove_file(Path::new(output)) {
-                    eprintln!(
-                        "Counld not remove output file '{}': {}",
-                        output.display(),
-                        e
-                    );
-                }
-            }
-            process::exit(1);
+            return Err(IOError {
+                message: e.to_string(),
+            });
         }
     }
+
+    Ok(())
 }
 
 /// Like [`alog::run`] but will let you pass your own `reader` and `writer`. Replacement strings
@@ -453,7 +449,7 @@ pub fn run(config: &Config, ioconfig: &IOConfig) {
 ///
 /// ## Errors
 ///
-/// Exits when the new reader or writer retruns an error.
+/// Returns an error if the new reader or writer retruns an error.
 ///
 /// ## Example
 ///
@@ -463,7 +459,7 @@ pub fn run(config: &Config, ioconfig: &IOConfig) {
 /// let line = Cursor::new(b"8.8.8.8 XxX");
 /// let mut buffer = vec![];
 ///
-/// alog::run_raw(&alog::Config::default(), line, &mut buffer);
+/// alog::run_raw(&alog::Config::default(), line, &mut buffer).unwrap();
 /// assert_eq!(buffer, b"127.0.0.1 XxX");
 /// ```
 ///
@@ -475,16 +471,18 @@ pub fn run(config: &Config, ioconfig: &IOConfig) {
 /// // Consider wrapping io::stdout in BufWriter
 /// let stdin = io::stdin();
 /// let stdout = io::stdout();
-/// alog::run_raw(&alog::Config::default(), stdin.lock(), stdout.lock());
+/// alog::run_raw(&alog::Config::default(), stdin.lock(), stdout.lock()).unwrap();
 /// ```
 ///
 /// [`alog::run`]: ./fn.run.html
 /// [`alog::Config`]: ./struct.Config.html
-pub fn run_raw<R: BufRead, W: Write>(config: &Config, reader: R, mut writer: W) {
-    if let Err(e) = replace_remote_address(config, reader, &mut writer) {
-        eprintln!("Error: {}", e);
-        process::exit(1);
-    }
+pub fn run_raw<R: BufRead, W: Write>(
+    config: &Config,
+    reader: R,
+    mut writer: W,
+) -> Result<(), IOError> {
+    replace_remote_address(config, reader, &mut writer)?;
+    Ok(())
 }
 
 #[cfg(test)]
@@ -497,7 +495,7 @@ mod tests {
         let line = Cursor::new(b"8.8.8.8 XxX");
         let mut buffer = vec![];
 
-        run_raw(&Config::default(), line, &mut buffer);
+        run_raw(&Config::default(), line, &mut buffer).unwrap();
         assert_eq!(buffer, b"127.0.0.1 XxX");
     }
 
@@ -585,6 +583,21 @@ mod tests {
 
         let mut conf = Config::default();
         conf.set_host_value("custom_host");
+
+        replace_remote_address(&conf, log, &mut buffer).unwrap();
+        assert_eq!(&buffer.into_inner(), &local_log);
+    }
+
+    #[test]
+    fn notrim_and_auth() {
+        use std::io::Cursor;
+        let mut buffer = Cursor::new(vec![]);
+        let log = Box::new(" 8.8.8.8 - frank [10/Oct/2000:13:55:36 -0700] \"GET /apache_pb.gif HTTP/1.0\" 200 2326 \"http://www.example.com/start.html\" \"Mozilla/4.08 [en] (Win98; I ;Nav)\"".as_bytes());
+        let local_log = "localhost - - [10/Oct/2000:13:55:36 -0700] \"GET /apache_pb.gif HTTP/1.0\" 200 2326 \"http://www.example.com/start.html\" \"Mozilla/4.08 [en] (Win98; I ;Nav)\"".as_bytes();
+
+        let mut conf = Config::default();
+        conf.set_trim(false);
+        conf.set_authuser(true);
 
         replace_remote_address(&conf, log, &mut buffer).unwrap();
         assert_eq!(&buffer.into_inner(), &local_log);
