@@ -290,53 +290,53 @@ fn replace_remote_address<R: BufRead, W: Write>(
                 _ => 0,
             };
             buf.drain(..s);
+        }
 
-            for (i, byte) in buf[..].iter().enumerate() {
-                if *byte == b' ' {
-                    if String::from_utf8_lossy(&buf[..i])
-                        .parse::<net::Ipv4Addr>()
-                        .is_ok()
-                    {
-                        write!(&mut writer, "{}", config.get_ipv4_value())?;
-                    } else if String::from_utf8_lossy(&buf[..i])
-                        .parse::<net::Ipv6Addr>()
-                        .is_ok()
-                    {
-                        write!(&mut writer, "{}", config.get_ipv6_value())?;
-                    } else {
-                        write!(&mut writer, "{}", config.get_host_value())?;
-                    }
-                    if config.get_authuser() {
-                        // trying to avoid the regex' overhead
-                        match &buf[i + 3..i + 6].iter().cmp(b"- [") {
-                            Ordering::Equal if config.get_optimize() => {
+        for (i, byte) in buf[..].iter().enumerate() {
+            if *byte == b' ' {
+                if String::from_utf8_lossy(&buf[..i])
+                    .parse::<net::Ipv4Addr>()
+                    .is_ok()
+                {
+                    write!(&mut writer, "{}", config.get_ipv4_value())?;
+                } else if String::from_utf8_lossy(&buf[..i])
+                    .parse::<net::Ipv6Addr>()
+                    .is_ok()
+                {
+                    write!(&mut writer, "{}", config.get_ipv6_value())?;
+                } else {
+                    write!(&mut writer, "{}", config.get_host_value())?;
+                }
+                if config.get_authuser() {
+                    // trying to avoid the regex' overhead
+                    match &buf[i + 3..i + 6].iter().cmp(b"- [") {
+                        Ordering::Equal if config.get_optimize() => {
+                            writer.write_all(&buf[i..])?;
+                        }
+                        _ => {
+                            if let Some(time_field) = RE.find_at(&buf, i) {
+                                write!(&mut writer, " - -")?;
+                                writer.write_all(&buf[time_field.start()..])?;
+                            } else {
                                 writer.write_all(&buf[i..])?;
                             }
-                            _ => {
-                                if let Some(time_field) = RE.find_at(&buf, i) {
-                                    write!(&mut writer, " - -")?;
-                                    writer.write_all(&buf[time_field.start()..])?;
-                                } else {
-                                    writer.write_all(&buf[i..])?;
-                                }
-                            }
                         }
-                    } else {
-                        writer.write_all(&buf[i..])?;
                     }
-                    if config.get_flush() {
-                        writer.flush()?;
-                    }
-                    continue 'lines;
+                } else {
+                    writer.write_all(&buf[i..])?;
                 }
-            }
-            if !config.get_skip() {
-                writer.write_all(&buf)?;
                 if config.get_flush() {
                     writer.flush()?;
                 }
+                continue 'lines;
             }
-        };
+        }
+        if !config.get_skip() {
+            writer.write_all(&buf)?;
+            if config.get_flush() {
+                writer.flush()?;
+            }
+        }
     }
     writer.flush()?;
     Ok(())
