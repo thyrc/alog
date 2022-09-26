@@ -12,11 +12,6 @@
 In fact by default `alog` just replaces the first *word* on every line of any input stream
 with a customizable string.
 
-With version 0.6
-
-* you can (at a substantial cost of CPU cycles) replace the `$remote_user` with '-' as well and
-* by default any leading Spaces or Tabs will be removed from every line before replacing any `$remote_addr`.
-
 So "log file anonymizer" might be a bit of an overstatement, but `alog` can be used to (very
 efficiently) replace the `$remote_addr` part in many access log formats, e.g. Nginx' default
 combined log format:
@@ -34,6 +29,18 @@ By default any parseable `$remote_addr` is replaced by it's *localhost* represen
 * any String (what might be a domain name) with *localhost*.
 
 Lines without a `$remote_addr` part will remain unchanged (but can be skipped).
+
+## Changes
+
+With version 0.7
+
+* All [`ASCII whitespace character`]s are removed from the beginning of each line by default.
+* The run() and run_raw() funktions will now return a Result instead of exiting on failure.
+
+With version 0.6
+
+* You can (at a substantial cost of CPU cycles) replace the `$remote_user` with '-' as well and
+* by default any leading Spaces or Tabs will be removed from every line before replacing any `$remote_addr`.
 
 ## Building alog
 
@@ -137,3 +144,6 @@ At some point I might re-use this crate and try harder to actually anonymize dat
 now, this is it.
 
 I will still fix bugs when (and if) I find them, so `alog` is now passively-maintained.
+
+
+[`ASCII whitespace character`]: https://doc.rust-lang.org/std/primitive.char.html#method.is_ascii_whitespace
