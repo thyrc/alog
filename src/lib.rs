@@ -32,9 +32,10 @@
 //! Lines without a 'first word' will remain unchanged (but can be skipped with [`Config::skip`]
 //! set to `true`).
 //!
-//! Starting with version 0.6 all Space and Tabulator (`b'\t'`) characters will be removed from
-//! the beginning of each line before replacing any `$remote_addr` by default. To switch back to
-//! the previous behaviour just set [`Config::trim`] to `false`.
+//! Starting with version 0.6 all Space and Tabulator (`b'\t'`) and from version 0.7 on all
+//! [ASCII whitespace](https://infra.spec.whatwg.org/#ascii-whitespace) characters will be removed
+//! from the beginning of each line before replacing any `$remote_addr` by default.
+//! To switch back to the previous behaviour just set [`Config::trim`] to `false`.
 //!
 //! ### Personal data in server logs
 //!
@@ -300,7 +301,7 @@ fn replace_remote_address<R: BufRead, W: Write>(
             break;
         }
 
-        #[allow(clippy::match_wildcard_for_single_variants)]
+        // #[allow(clippy::match_wildcard_for_single_variants)]
         if config.get_trim() {
             let s = match buf.iter().position(|&x| !x.is_ascii_whitespace()) {
                 Some(s) => s,
@@ -403,7 +404,7 @@ pub fn run(config: &Config, ioconfig: &IOConfig) -> Result<(), IOError> {
                 Ok(f) => f,
                 Err(e) => {
                     return Err(IOError {
-                        message: format!("Can not open output '{}': {}", output.display(), e),
+                        message: format!("Can not open output '{}': {e}", output.display()),
                     })
                 }
             };
@@ -418,7 +419,7 @@ pub fn run(config: &Config, ioconfig: &IOConfig) -> Result<(), IOError> {
             match File::open(Path::new(arg)) {
                 Err(e) => {
                     return Err(IOError {
-                        message: format!("Can not open input '{}': {}", arg.display(), e),
+                        message: format!("Can not open input '{}': {e}", arg.display()),
                     })
                 }
                 Ok(f) => {

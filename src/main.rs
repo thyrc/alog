@@ -1,4 +1,4 @@
-use clap::{builder::ValueParser, Arg, Command};
+use clap::{builder::ValueParser, Arg, ArgAction, Command};
 use std::ffi::OsString;
 use std::path::Path;
 
@@ -11,9 +11,8 @@ fn main() {
     let cli_arguments = Command::new(env!("CARGO_PKG_NAME"))
         .version(env!("CARGO_PKG_VERSION"))
         .about("Mangle common / combined logs")
-        .override_help(
-            format!(
-                "{} {}
+        .override_help(format!(
+            "{} {}
 Mangle common / combined logs
 
 USAGE:
@@ -37,11 +36,9 @@ OPTIONS:
 
 ARGS:
     <INPUT>...    The input file(s) to use",
-                env!("CARGO_PKG_NAME"),
-                env!("CARGO_PKG_VERSION")
-            )
-            .as_str(),
-        )
+            env!("CARGO_PKG_NAME"),
+            env!("CARGO_PKG_VERSION")
+        ))
         .arg(
             Arg::new("ipv4-replacement")
                 .short('4')
@@ -49,7 +46,7 @@ ARGS:
                 .value_name("ipv4-replacement")
                 .default_value(default_config.get_ipv4_value())
                 .help("Sets IPv4 replacement string")
-                .takes_value(true),
+                .num_args(1),
         )
         .arg(
             Arg::new("ipv6-replacement")
@@ -58,7 +55,7 @@ ARGS:
                 .value_name("ipv6-replacement")
                 .default_value(default_config.get_ipv6_value())
                 .help("Sets IPv6 replacement string")
-                .takes_value(true),
+                .num_args(1),
         )
         .arg(
             Arg::new("host-replacement")
@@ -66,43 +63,42 @@ ARGS:
                 .value_name("host-replacement")
                 .default_value(default_config.get_host_value())
                 .help("Sets host replacement string")
-                .takes_value(true),
+                .num_args(1),
         )
         .arg(
             Arg::new("skip-invalid")
                 .short('s')
                 .long("skip-invalid")
                 .help("Skip invalid lines")
-                .takes_value(false),
+                .action(clap::ArgAction::SetTrue),
         )
         .arg(
             Arg::new("authuser")
                 .short('a')
                 .long("authuser")
                 .help("Clear authuser")
-                .takes_value(false),
+                .action(clap::ArgAction::SetTrue),
         )
         .arg(
             Arg::new("notrim")
                 .short('n')
                 .long("notrim")
-                .requires("authuser")
                 .help("Don't remove Space and Tab from the start of every line")
-                .takes_value(false),
+                .action(clap::ArgAction::SetTrue),
         )
         .arg(
             Arg::new("nooptimize")
                 .long("no-optimize")
                 .requires("authuser")
                 .help("Don't try to reduce performance hit with `--authuser`")
-                .takes_value(false),
+                .action(clap::ArgAction::SetTrue),
         )
         .arg(
             Arg::new("flush-line")
                 .short('f')
                 .long("flush-line")
                 .help("Flush output on every line")
-                .takes_value(false),
+                .action(clap::ArgAction::SetTrue),
         )
         .arg(
             Arg::new("output")
@@ -111,7 +107,7 @@ ARGS:
                 .value_name("FILE")
                 .help("Sets output file")
                 .value_parser(ValueParser::os_string())
-                .takes_value(true),
+                .num_args(1),
         )
         .arg(
             Arg::new("input")
@@ -119,7 +115,7 @@ ARGS:
                 .help("The input file(s) to use")
                 .index(1)
                 .value_parser(ValueParser::os_string())
-                .multiple_values(true),
+                .action(ArgAction::Append),
         )
         .get_matches();
 
@@ -151,23 +147,23 @@ ARGS:
         config.set_ipv4_value(ipv4);
     }
 
-    if cli_arguments.contains_id("flush-line") {
+    if cli_arguments.get_flag("flush-line") {
         config.set_flush(true);
     }
 
-    if cli_arguments.contains_id("authuser") {
+    if cli_arguments.get_flag("authuser") {
         config.set_authuser(true);
     }
 
-    if cli_arguments.contains_id("notrim") {
+    if cli_arguments.get_flag("notrim") {
         config.set_trim(false);
     }
 
-    if cli_arguments.contains_id("nooptimize") {
+    if cli_arguments.get_flag("nooptimize") {
         config.set_optimize(false);
     }
 
-    if cli_arguments.contains_id("skip-invalid") {
+    if cli_arguments.get_flag("skip-invalid") {
         config.set_skip(true);
     }
 
@@ -185,7 +181,7 @@ ARGS:
     }
 
     if let Err(e) = alog::run(&config, &ioconfig) {
-        eprintln!("Error: {}", e);
+        eprintln!("Error: {e}");
         std::process::exit(1);
     };
 }
