@@ -37,7 +37,7 @@ jobs:
           command: build
           args: --release --target=${{ matrix.target }} --all-features --verbose
       - name: Upload artifact
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v4
         with:
           name: alog-${{ matrix.target }}
           path: ./target/${{ matrix.target }}/release/alog
@@ -79,7 +79,7 @@ jobs:
           command: build
           args: --release --all-features --verbose
       - name: Upload artifact
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v4
         with:
           name: alog.exe
           path: target/release/alog.exe
