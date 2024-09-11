@@ -1,18 +1,6 @@
-use clap::{builder::ValueParser, Arg, ArgAction, Command};
-use std::ffi::OsString;
-use std::path::Path;
+use std::{ffi::OsString, path::Path, process};
 
-#[allow(clippy::too_many_lines)]
-fn main() {
-    let default_config = alog::Config::default();
-    let mut config = alog::Config::default();
-    let mut ioconfig = alog::IOConfig::default();
-
-    let cli_arguments = Command::new(env!("CARGO_PKG_NAME"))
-        .version(env!("CARGO_PKG_VERSION"))
-        .about("Mangle common / combined logs")
-        .override_help(format!(
-            "{} {}
+const HELP: &str = "\
 Mangle common / combined logs
 
 USAGE:
@@ -35,153 +23,64 @@ OPTIONS:
     -o, --output <FILE>                          Sets output file
 
 ARGS:
-    <INPUT>...    The input file(s) to use",
-            env!("CARGO_PKG_NAME"),
-            env!("CARGO_PKG_VERSION")
-        ))
-        .arg(
-            Arg::new("ipv4-replacement")
-                .short('4')
-                .long("ipv4-replacement")
-                .value_name("ipv4-replacement")
-                .default_value(default_config.get_ipv4_value())
-                .help("Sets IPv4 replacement string")
-                .num_args(1),
-        )
-        .arg(
-            Arg::new("ipv6-replacement")
-                .short('6')
-                .long("ipv6-replacement")
-                .value_name("ipv6-replacement")
-                .default_value(default_config.get_ipv6_value())
-                .help("Sets IPv6 replacement string")
-                .num_args(1),
-        )
-        .arg(
-            Arg::new("host-replacement")
-                .long("host-replacement")
-                .value_name("host-replacement")
-                .default_value(default_config.get_host_value())
-                .help("Sets host replacement string")
-                .num_args(1),
-        )
-        .arg(
-            Arg::new("skip-invalid")
-                .short('s')
-                .long("skip-invalid")
-                .help("Skip invalid lines")
-                .action(clap::ArgAction::SetTrue),
-        )
-        .arg(
-            Arg::new("authuser")
-                .short('a')
-                .long("authuser")
-                .help("Clear authuser")
-                .action(clap::ArgAction::SetTrue),
-        )
-        .arg(
-            Arg::new("notrim")
-                .short('n')
-                .long("notrim")
-                .help("Don't remove Space and Tab from the start of every line")
-                .action(clap::ArgAction::SetTrue),
-        )
-        .arg(
-            Arg::new("nooptimize")
-                .long("no-optimize")
-                .requires("authuser")
-                .help("Don't try to reduce performance hit with `--authuser`")
-                .action(clap::ArgAction::SetTrue),
-        )
-        .arg(
-            Arg::new("flush-line")
-                .short('f')
-                .long("flush-line")
-                .help("Flush output on every line")
-                .action(clap::ArgAction::SetTrue),
-        )
-        .arg(
-            Arg::new("output")
-                .short('o')
-                .long("output")
-                .value_name("FILE")
-                .help("Sets output file")
-                .value_parser(ValueParser::os_string())
-                .num_args(1),
-        )
-        .arg(
-            Arg::new("input")
-                .value_name("INPUT")
-                .help("The input file(s) to use")
-                .index(1)
-                .value_parser(ValueParser::os_string())
-                .action(ArgAction::Append),
-        )
-        .get_matches();
+    <INPUT>...    The input file(s) to use";
 
-    if let Some(ipv4) = cli_arguments
-        .get_one::<String>("ipv4-replacement")
-        .map(std::string::String::as_str)
-    {
-        config.set_ipv4_value(ipv4);
-    }
+fn main() -> Result<(), lexopt::Error> {
+    use lexopt::prelude::*;
 
-    if let Some(ipv6) = cli_arguments
-        .get_one::<String>("ipv6-replacement")
-        .map(std::string::String::as_str)
-    {
-        config.set_ipv6_value(ipv6);
-    }
+    let mut config = alog::Config::default();
+    let mut ioconfig = alog::IOConfig::default();
 
-    if let Some(host) = cli_arguments
-        .get_one::<String>("host-replacement")
-        .map(std::string::String::as_str)
-    {
-        config.set_host_value(host);
-    }
+    let mut host_replacement = config.get_host_value().to_string();
+    let mut ipv4_replacement = config.get_ipv4_value().to_string();
+    let mut ipv6_replacement = config.get_ipv6_value().to_string();
 
-    if let Some(ipv4) = cli_arguments
-        .get_one::<String>("ipv4-replacement")
-        .map(std::string::String::as_str)
-    {
-        config.set_ipv4_value(ipv4);
-    }
+    let mut output: Option<OsString> = None;
+    let mut input: Vec<OsString> = vec![];
 
-    if cli_arguments.get_flag("flush-line") {
-        config.set_flush(true);
-    }
+    let mut parser = lexopt::Parser::from_env();
 
-    if cli_arguments.get_flag("authuser") {
-        config.set_authuser(true);
-    }
-
-    if cli_arguments.get_flag("notrim") {
-        config.set_trim(false);
-    }
-
-    if cli_arguments.get_flag("nooptimize") {
-        config.set_optimize(false);
-    }
-
-    if cli_arguments.get_flag("skip-invalid") {
-        config.set_skip(true);
-    }
-
-    if let Some(output) = cli_arguments
-        .get_one::<OsString>("output")
-        .map(std::ffi::OsString::as_os_str)
-    {
-        ioconfig.set_output(Path::new(output));
-    }
-
-    if let Some(input) = cli_arguments.get_many::<OsString>("input") {
-        for file in input.collect::<Vec<_>>() {
-            ioconfig.push_input(file);
+    while let Some(arg) = parser.next()? {
+        match arg {
+            Short('a') | Long("authuser") => config.set_authuser(true),
+            Short('f') | Long("flush-line") => config.set_flush(true),
+            Long("no-optimize") => config.set_optimize(false),
+            Short('n') | Long("notrim") => config.set_trim(false),
+            Short('s') | Long("skip-invalid") => config.set_skip(true),
+            Long("host-replacement") => host_replacement = parser.value()?.string()?,
+            Short('4') | Long("ipv4-replacement") => ipv4_replacement = parser.value()?.string()?,
+            Short('6') | Long("ipv6-replacement") => ipv6_replacement = parser.value()?.string()?,
+            Short('o') | Long("output") => output = Some(parser.value()?.parse()?),
+            Value(f) => input.push(f),
+            Short('h') | Long("help") => {
+                println!("{HELP}");
+                process::exit(0);
+            }
+            Short('V') | Long("version") => {
+                println!("{} {}", env!("CARGO_BIN_NAME"), env!("CARGO_PKG_VERSION"));
+                process::exit(0);
+            }
+            _ => return Err(arg.unexpected()),
         }
+    }
+
+    config.set_host_value(&host_replacement);
+    config.set_ipv4_value(&ipv4_replacement);
+    config.set_ipv6_value(&ipv6_replacement);
+
+    let opath = output.unwrap_or_default();
+    if !opath.is_empty() {
+        ioconfig.set_output(Path::new(opath.as_os_str()));
+    }
+
+    for i in &input {
+        ioconfig.push_input(i);
     }
 
     if let Err(e) = alog::run(&config, &ioconfig) {
         eprintln!("Error: {e}");
-        std::process::exit(1);
+        process::exit(1);
     };
+
+    Ok(())
 }

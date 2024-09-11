@@ -24,8 +24,8 @@ debug = true
 codegen-units = 1
 
 [dependencies]
-clap = { version = "4", default-features = false, features = ["std"], optional = true }
 lazy_static = "1.4"
+lexopt = { version = "0.3.0", optional = true }
 regex = { version = "= 1.7.3", default-features = false, features = ["std", "perf-dfa"] }
 
 [lib]
@@ -33,7 +33,7 @@ name = "alog"
 path = "src/lib.rs"
 
 [features]
-alog-cli = [ "clap" ]
+alog-cli = [ "lexopt" ]
 
 [[bin]]
 name = "alog"
