@@ -95,7 +95,7 @@ impl From<io::Error> for IOError {
 /// INPUT / OUTPUT config
 #[derive(Debug)]
 pub struct IOConfig<'a> {
-    /// List of input paths / files, e.g. Some(vec![Path::new("/tmp/test1.log"), Path::new("/tmp/test2.log")])
+    /// List of input paths / files, e.g. `Some(vec![Path::new("/tmp/test1.log"), Path::new("/tmp/test2.log")])`
     /// If set to `None` the reader will read from Stdin.
     input: Option<Vec<&'a Path>>,
     /// Single output path / file
@@ -303,10 +303,10 @@ fn replace_remote_address<R: BufRead, W: Write>(
 
         // #[allow(clippy::match_wildcard_for_single_variants)]
         if config.get_trim() {
-            let s = match buf.iter().position(|&x| !x.is_ascii_whitespace()) {
-                Some(s) => s,
-                _ => 0,
-            };
+            let s = buf
+                .iter()
+                .position(|&x| !x.is_ascii_whitespace())
+                .unwrap_or(0);
             buf.drain(..s);
         }
 
@@ -327,18 +327,20 @@ fn replace_remote_address<R: BufRead, W: Write>(
                 }
                 if config.get_authuser() {
                     // trying to avoid the regex' overhead
-                    match &buf[i + 3..i + 6].iter().cmp(b"- [") {
-                        Ordering::Equal if config.get_optimize() => {
+                    if config.get_optimize() && buf.len() >= i + 6 {
+                        if buf[i + 3..i + 6].iter().cmp(b"- [") == Ordering::Equal {
+                            writer.write_all(&buf[i..])?;
+                        } else if let Some(time_field) = RE.find_at(&buf, i) {
+                            write!(&mut writer, " - -")?;
+                            writer.write_all(&buf[time_field.start()..])?;
+                        } else {
                             writer.write_all(&buf[i..])?;
                         }
-                        _ => {
-                            if let Some(time_field) = RE.find_at(&buf, i) {
-                                write!(&mut writer, " - -")?;
-                                writer.write_all(&buf[time_field.start()..])?;
-                            } else {
-                                writer.write_all(&buf[i..])?;
-                            }
-                        }
+                    } else if let Some(time_field) = RE.find_at(&buf, i) {
+                        write!(&mut writer, " - -")?;
+                        writer.write_all(&buf[time_field.start()..])?;
+                    } else {
+                        writer.write_all(&buf[i..])?;
                     }
                 } else {
                     writer.write_all(&buf[i..])?;
