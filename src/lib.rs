@@ -1,4 +1,3 @@
-#![allow(clippy::needless_doctest_main, clippy::must_use_candidate)]
 //! `alog` is a simple log file anonymizer.
 //!
 //! ## About
@@ -60,6 +59,7 @@ use std::cmp::Ordering;
 use std::fs::{File, OpenOptions};
 use std::io::{self, BufRead, BufReader, BufWriter, Write};
 use std::path::Path;
+use std::str::from_utf8_unchecked;
 use std::{fmt, net};
 
 use regex::bytes::Regex;
@@ -119,6 +119,9 @@ pub struct Config<'a> {
     pub authuser: bool,
     /// Trim spaces from the start of every line
     pub trim: bool,
+    /// Replace all occurrences of `$remote_addr` in each
+    /// line
+    pub thorough: bool,
     /// Don't clear authuser fields starting with "- ["
     /// We assume these fields are already cleared.
     pub optimize: bool,
@@ -146,6 +149,7 @@ impl<'a> Default for Config<'a> {
             skip: false,
             authuser: false,
             trim: true,
+            thorough: false,
             optimize: true,
             flush: false,
         }
@@ -153,46 +157,60 @@ impl<'a> Default for Config<'a> {
 }
 
 impl<'a> Config<'a> {
+    #[must_use]
     pub fn new() -> Self {
         Self::default()
     }
 
     /// Get IPv4 replacement value
+    #[must_use]
     pub fn get_ipv4_value(&self) -> &'a str {
         self.ipv4
     }
 
     /// Get IPv6 replacement value
+    #[must_use]
     pub fn get_ipv6_value(&self) -> &'a str {
         self.ipv6
     }
 
     /// Get string replacement value
+    #[must_use]
     pub fn get_host_value(&self) -> &'a str {
         self.host
     }
 
     /// Get `skip` value
+    #[must_use]
     pub fn get_skip(&self) -> bool {
         self.skip
     }
 
     /// Get `authuser` value
+    #[must_use]
     pub fn get_authuser(&self) -> bool {
         self.authuser
     }
 
     /// Get `trim` value
+    #[must_use]
     pub fn get_trim(&self) -> bool {
         self.trim
     }
+    /// Get `thorough` value
+    #[must_use]
+    pub fn get_thorough(&self) -> bool {
+        self.thorough
+    }
 
     /// Get `optimize` value
+    #[must_use]
     pub fn get_optimize(&self) -> bool {
         self.optimize
     }
 
     /// Get `flush` value
+    #[must_use]
     pub fn get_flush(&self) -> bool {
         self.flush
     }
@@ -226,6 +244,10 @@ impl<'a> Config<'a> {
     pub fn set_trim(&mut self, b: bool) {
         self.trim = b;
     }
+    /// Set `thorough` field
+    pub fn set_thorough(&mut self, b: bool) {
+        self.thorough = b;
+    }
 
     /// Set `optimize` field
     pub fn set_optimize(&mut self, b: bool) {
@@ -239,15 +261,18 @@ impl<'a> Config<'a> {
 }
 
 impl<'a> IOConfig<'a> {
+    #[must_use]
     pub fn new() -> Self {
         Self::default()
     }
 
+    #[must_use]
     /// Get input / reader names, if any (defaults to `None`)
     pub fn get_input(&self) -> Option<&Vec<&'a Path>> {
         self.input.as_ref()
     }
 
+    #[must_use]
     /// Get output / writer name (defaults to `None`)
     pub fn get_output(&self) -> Option<&'a Path> {
         self.output
@@ -287,12 +312,15 @@ impl<'a> IOConfig<'a> {
 /// [`alog::Config::get_ipv4_value()`]: ./struct.Config.html#method.get_ipv4_value
 /// [`alog::Config::get_ipv6_value()`]: ./struct.Config.html#method.get_ipv6_value
 /// [`alog::Config::get_host_value()`]: ./struct.Config.html#method.get_host_value
+#[allow(clippy::too_many_lines)]
 fn replace_remote_address<R: BufRead, W: Write>(
     config: &Config,
     mut reader: R,
     mut writer: W,
 ) -> Result<(), io::Error> {
     let mut buf = vec![];
+    let mut needle;
+    let mut repl;
 
     'lines: loop {
         buf.clear();
@@ -301,7 +329,6 @@ fn replace_remote_address<R: BufRead, W: Write>(
             break;
         }
 
-        // #[allow(clippy::match_wildcard_for_single_variants)]
         if config.get_trim() {
             let s = buf
                 .iter()
@@ -311,46 +338,94 @@ fn replace_remote_address<R: BufRead, W: Write>(
         }
 
         for (i, byte) in buf[..].iter().enumerate() {
-            if *byte == b' ' {
-                if String::from_utf8_lossy(&buf[..i])
-                    .parse::<net::Ipv4Addr>()
-                    .is_ok()
-                {
-                    write!(&mut writer, "{}", config.get_ipv4_value())?;
-                } else if String::from_utf8_lossy(&buf[..i])
-                    .parse::<net::Ipv6Addr>()
-                    .is_ok()
-                {
-                    write!(&mut writer, "{}", config.get_ipv6_value())?;
-                } else {
-                    write!(&mut writer, "{}", config.get_host_value())?;
+            if byte.is_ascii_whitespace() {
+                match unsafe { from_utf8_unchecked(&buf[..i]) } {
+                    s if s.parse::<net::Ipv4Addr>().is_ok() => {
+                        needle = s;
+                        repl = config.get_ipv4_value();
+                    }
+                    s if s.parse::<net::Ipv6Addr>().is_ok() => {
+                        needle = s;
+                        repl = config.get_ipv6_value();
+                    }
+                    s => {
+                        needle = s;
+                        repl = config.get_host_value();
+                    }
                 }
+                write!(&mut writer, "{repl}")?;
+
                 if config.get_authuser() {
                     // trying to avoid the regex' overhead
                     if config.get_optimize() && buf.len() >= i + 6 {
                         if buf[i + 3..i + 6].iter().cmp(b"- [") == Ordering::Equal {
-                            writer.write_all(&buf[i..])?;
+                            if config.get_thorough() {
+                                writer.write_all(unsafe {
+                                    from_utf8_unchecked(&buf[i..])
+                                        .replace(needle, repl)
+                                        .as_bytes()
+                                })?;
+                            } else {
+                                writer.write_all(&buf[i..])?;
+                            }
                         } else if let Some(time_field) = RE.find_at(&buf, i) {
                             write!(&mut writer, " - -")?;
-                            writer.write_all(&buf[time_field.start()..])?;
+                            if config.get_thorough() {
+                                writer.write_all(unsafe {
+                                    from_utf8_unchecked(&buf[time_field.start()..])
+                                        .replace(needle, repl)
+                                        .as_bytes()
+                                })?;
+                            } else {
+                                writer.write_all(&buf[time_field.start()..])?;
+                            }
+                        } else if config.get_thorough() {
+                            writer.write_all(unsafe {
+                                from_utf8_unchecked(&buf[i..])
+                                    .replace(needle, repl)
+                                    .as_bytes()
+                            })?;
                         } else {
                             writer.write_all(&buf[i..])?;
                         }
                     } else if let Some(time_field) = RE.find_at(&buf, i) {
                         write!(&mut writer, " - -")?;
-                        writer.write_all(&buf[time_field.start()..])?;
+                        if config.get_thorough() {
+                            writer.write_all(unsafe {
+                                from_utf8_unchecked(&buf[time_field.start()..])
+                                    .replace(needle, repl)
+                                    .as_bytes()
+                            })?;
+                        } else {
+                            writer.write_all(&buf[time_field.start()..])?;
+                        }
+                    } else if config.get_thorough() {
+                        writer.write_all(unsafe {
+                            from_utf8_unchecked(&buf[i..])
+                                .replace(needle, repl)
+                                .as_bytes()
+                        })?;
                     } else {
                         writer.write_all(&buf[i..])?;
                     }
+                } else if config.get_thorough() {
+                    writer.write_all(unsafe {
+                        from_utf8_unchecked(&buf[i..])
+                            .replace(needle, repl)
+                            .as_bytes()
+                    })?;
                 } else {
                     writer.write_all(&buf[i..])?;
                 }
+
                 if config.get_flush() {
                     writer.flush()?;
                 }
+
                 continue 'lines;
             }
         }
+
         if !config.get_skip() {
             writer.write_all(&buf)?;
             if config.get_flush() {
@@ -374,16 +449,14 @@ fn replace_remote_address<R: BufRead, W: Write>(
 ///
 /// ## Example
 ///
-/// ```[no_run]
-/// fn main() {
-///     alog::run(
-///         &alog::Config {
-///             host: "XXX",
-///             ..Default::default()
-///         },
-///         &alog::IOConfig::default()
-///     ).unwrap();
-/// }
+/// ```no_run
+/// alog::run(
+///     &alog::Config {
+///         host: "XXX",
+///         ..Default::default()
+///     },
+///     &alog::IOConfig::default()
+/// ).unwrap();
 /// ```
 ///
 /// [`alog::Config`]: ./struct.Config.html
@@ -604,5 +677,25 @@ mod tests {
 
         replace_remote_address(&conf, log, &mut buffer).unwrap();
         assert_eq!(&buffer.into_inner(), &local_log);
+    }
+
+    #[test]
+    fn invalid_utf8() {
+        use std::io::Cursor;
+        let line = Cursor::new(vec![0, 159, 146, 150, 32, 88, 120, 88]);
+        let mut buffer = vec![];
+
+        run_raw(&Config::default(), line, &mut buffer).unwrap();
+        assert_eq!(buffer, b"localhost XxX");
+    }
+
+    #[test]
+    fn valid_utf8() {
+        use std::io::Cursor;
+        let line = Cursor::new(vec![240, 159, 146, 150, 32, 88, 120, 88]);
+        let mut buffer = vec![];
+
+        run_raw(&Config::default(), line, &mut buffer).unwrap();
+        assert_eq!(buffer, b"localhost XxX");
     }
 }

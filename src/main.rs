@@ -11,6 +11,7 @@ FLAGS:
     -f, --flush-line      Flush output on every line
         --no-optimize     Don't try to reduce performance hit with `--authuser`
     -n, --notrim          Don't remove Space and Tab from the start of every line
+    -t, --thorough        Replace all occurrences on every line
     -s, --skip-invalid    Skip invalid lines
 
     -h, --help            Print this message
@@ -25,8 +26,20 @@ OPTIONS:
 ARGS:
     <INPUT>...    The input file(s) to use";
 
+#[cfg(unix)]
+pub fn pipe_reset() {
+    unsafe {
+        ::libc::signal(::libc::SIGPIPE, ::libc::SIG_DFL);
+    }
+}
+
+#[cfg(not(unix))]
+pub fn pipe_reset() {}
+
 fn main() -> Result<(), lexopt::Error> {
     use lexopt::prelude::*;
+
+    pipe_reset();
 
     let mut config = alog::Config::default();
     let mut ioconfig = alog::IOConfig::default();
@@ -46,6 +59,7 @@ fn main() -> Result<(), lexopt::Error> {
             Short('f') | Long("flush-line") => config.set_flush(true),
             Long("no-optimize") => config.set_optimize(false),
             Short('n') | Long("notrim") => config.set_trim(false),
+            Short('t') | Long("thorough") => config.set_thorough(true),
             Short('s') | Long("skip-invalid") => config.set_skip(true),
             Long("host-replacement") => host_replacement = parser.value()?.string()?,
             Short('4') | Long("ipv4-replacement") => ipv4_replacement = parser.value()?.string()?,
