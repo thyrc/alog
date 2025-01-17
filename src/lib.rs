@@ -59,7 +59,6 @@ use std::cmp::Ordering;
 use std::fs::{File, OpenOptions};
 use std::io::{self, BufRead, BufReader, BufWriter, Write};
 use std::path::Path;
-use std::str::from_utf8_unchecked;
 use std::{fmt, net};
 
 use regex::bytes::Regex;
@@ -312,14 +311,12 @@ impl<'a> IOConfig<'a> {
 /// [`alog::Config::get_ipv4_value()`]: ./struct.Config.html#method.get_ipv4_value
 /// [`alog::Config::get_ipv6_value()`]: ./struct.Config.html#method.get_ipv6_value
 /// [`alog::Config::get_host_value()`]: ./struct.Config.html#method.get_host_value
-#[allow(clippy::too_many_lines)]
 fn replace_remote_address<R: BufRead, W: Write>(
     config: &Config,
     mut reader: R,
     mut writer: W,
 ) -> Result<(), io::Error> {
     let mut buf = vec![];
-    let mut needle;
     let mut repl;
 
     'lines: loop {
@@ -337,83 +334,39 @@ fn replace_remote_address<R: BufRead, W: Write>(
             buf.drain(..s);
         }
 
-        for (i, byte) in buf[..].iter().enumerate() {
+        for (i, byte) in buf.iter().enumerate() {
             if byte.is_ascii_whitespace() {
-                match unsafe { from_utf8_unchecked(&buf[..i]) } {
-                    s if s.parse::<net::Ipv4Addr>().is_ok() => {
-                        needle = s;
-                        repl = config.get_ipv4_value();
-                    }
-                    s if s.parse::<net::Ipv6Addr>().is_ok() => {
-                        needle = s;
-                        repl = config.get_ipv6_value();
-                    }
-                    s => {
-                        needle = s;
-                        repl = config.get_host_value();
-                    }
-                }
+                let needle = &String::from_utf8_lossy(&buf[..i]);
+                repl = match needle {
+                    s if s.parse::<net::Ipv4Addr>().is_ok() => config.get_ipv4_value(),
+                    s if s.parse::<net::Ipv6Addr>().is_ok() => config.get_ipv6_value(),
+                    s if s.is_empty() && config.get_skip() => continue 'lines,
+                    _ => config.get_host_value(),
+                };
+
                 write!(&mut writer, "{repl}")?;
 
-                if config.get_authuser() {
-                    // trying to avoid the regex' overhead
-                    if config.get_optimize() && buf.len() >= i + 6 {
-                        if buf[i + 3..i + 6].iter().cmp(b"- [") == Ordering::Equal {
-                            if config.get_thorough() {
-                                writer.write_all(unsafe {
-                                    from_utf8_unchecked(&buf[i..])
-                                        .replace(needle, repl)
-                                        .as_bytes()
-                                })?;
-                            } else {
-                                writer.write_all(&buf[i..])?;
-                            }
-                        } else if let Some(time_field) = RE.find_at(&buf, i) {
-                            write!(&mut writer, " - -")?;
-                            if config.get_thorough() {
-                                writer.write_all(unsafe {
-                                    from_utf8_unchecked(&buf[time_field.start()..])
-                                        .replace(needle, repl)
-                                        .as_bytes()
-                                })?;
-                            } else {
-                                writer.write_all(&buf[time_field.start()..])?;
-                            }
-                        } else if config.get_thorough() {
-                            writer.write_all(unsafe {
-                                from_utf8_unchecked(&buf[i..])
-                                    .replace(needle, repl)
-                                    .as_bytes()
-                            })?;
-                        } else {
-                            writer.write_all(&buf[i..])?;
-                        }
+                let is_authuser = config.get_authuser();
+                let is_thorough = config.get_thorough();
+                let is_optimized = config.get_optimize() && buf.len() >= i + 6;
+
+                if is_authuser {
+                    if is_optimized && buf[i + 3..i + 6].iter().cmp(b"- [") == Ordering::Equal {
+                        write_or_replace(&buf[i..], needle, repl, is_thorough, &mut writer)?;
                     } else if let Some(time_field) = RE.find_at(&buf, i) {
                         write!(&mut writer, " - -")?;
-                        if config.get_thorough() {
-                            writer.write_all(unsafe {
-                                from_utf8_unchecked(&buf[time_field.start()..])
-                                    .replace(needle, repl)
-                                    .as_bytes()
-                            })?;
-                        } else {
-                            writer.write_all(&buf[time_field.start()..])?;
-                        }
-                    } else if config.get_thorough() {
-                        writer.write_all(unsafe {
-                            from_utf8_unchecked(&buf[i..])
-                                .replace(needle, repl)
-                                .as_bytes()
-                        })?;
+                        write_or_replace(
+                            &buf[time_field.start()..],
+                            needle,
+                            repl,
+                            is_thorough,
+                            &mut writer,
+                        )?;
                     } else {
-                        writer.write_all(&buf[i..])?;
+                        write_or_replace(&buf[i..], needle, repl, is_thorough, &mut writer)?;
                     }
-                } else if config.get_thorough() {
-                    writer.write_all(unsafe {
-                        from_utf8_unchecked(&buf[i..])
-                            .replace(needle, repl)
-                            .as_bytes()
-                    })?;
+                } else if is_thorough {
+                    write_or_replace(&buf[i..], needle, repl, true, &mut writer)?;
                 } else {
                     writer.write_all(&buf[i..])?;
                 }
@@ -425,15 +378,45 @@ fn replace_remote_address<R: BufRead, W: Write>(
                 continue 'lines;
             }
         }
+    }
 
-        if !config.get_skip() {
-            writer.write_all(&buf)?;
-            if config.get_flush() {
-                writer.flush()?;
-            }
+    writer.flush()?;
+    Ok(())
+}
+
+fn replace<T>(source: &[T], from: &[T], to: &[T]) -> Vec<T>
+where
+    T: Clone + PartialEq,
+{
+    let mut result = source.to_vec();
+    let from_len = from.len();
+    let to_len = to.len();
+
+    let mut i = 0;
+    while i + from_len <= result.len() {
+        if result[i..].starts_with(from) {
+            result.splice(i..i + from_len, to.iter().cloned());
+            i += to_len;
+        } else {
+            i += 1;
         }
     }
-    writer.flush()?;
+
+    result
+}
+
+fn write_or_replace<W: Write>(
+    slice: &[u8],
+    needle: &str,
+    repl: &str,
+    should_replace: bool,
+    writer: &mut W,
+) -> Result<(), io::Error> {
+    if should_replace && !needle.is_empty() {
+        writer.write_all(&replace(slice, needle.as_bytes(), repl.as_bytes()))?;
+    } else {
+        writer.write_all(slice)?;
+    }
     Ok(())
 }
 
