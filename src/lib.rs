@@ -74,6 +74,8 @@ lazy_static! {
 
 trait Replace {
     fn replace(&self, old: &[u8], new: &[u8]) -> Vec<u8>;
+    fn search(&self, pattern: &[u8]) -> Option<Vec<usize>>;
+    fn prefix_table(pattern: &[u8]) -> Vec<isize>;
 }
 
 impl Replace for [u8] {
@@ -81,17 +83,72 @@ impl Replace for [u8] {
         let mut result = Vec::with_capacity(self.len());
         let mut i = 0;
 
-        while i < self.len() {
-            if self[i..].starts_with(old) {
+        if let Some(matches) = self.search(old) {
+            for m in matches {
+                result.extend_from_slice(&self[i..m]);
                 result.extend_from_slice(new);
-                i += old.len();
-            } else {
-                result.push(self[i]);
-                i += 1;
+                i = m + old.len();
             }
+            result.extend_from_slice(&self[i..]);
+        } else {
+            return self.to_vec();
         }
 
         result
+    }
+
+    #[allow(clippy::cast_sign_loss)]
+    fn search(&self, pattern: &[u8]) -> Option<Vec<usize>> {
+        if pattern.is_empty() {
+            return None;
+        }
+
+        let table = Self::prefix_table(pattern);
+
+        let mut i = 0;
+        let mut j: isize = 0;
+
+        let m = self.len();
+        let n = pattern.len();
+
+        let mut indices = Vec::new();
+
+        while i < m {
+            while j >= 0 && self[i] != pattern[j as usize] {
+                j = table[j as usize];
+            }
+
+            i += 1;
+            j += 1;
+            if (j as usize) == n {
+                indices.push(i - n);
+                j = table[j as usize];
+            }
+        }
+
+        if indices.is_empty() {
+            None
+        } else {
+            Some(indices)
+        }
+    }
+
+    #[allow(clippy::cast_sign_loss)]
+    fn prefix_table(pattern: &[u8]) -> Vec<isize> {
+        let mut i = 0;
+        let mut j: isize = -1;
+        let mut table = vec![0; pattern.len() + 1];
+        table[i] = j;
+        while i < pattern.len() {
+            while j >= 0 && pattern[j as usize] != pattern[i] {
+                j = table[j as usize];
+            }
+
+            i += 1;
+            j += 1;
+            table[i] = j;
+        }
+        table
     }
 }
 
