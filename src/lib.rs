@@ -72,10 +72,13 @@ lazy_static! {
     static ref RE: Regex = Regex::new(" \\[[0-9]{1,2}/").unwrap();
 }
 
+#[allow(dead_code)]
 trait Replace {
     fn replace(&self, old: &[u8], new: &[u8]) -> Vec<u8>;
-    fn search(&self, pattern: &[u8]) -> Option<Vec<usize>>;
+    fn kmpsearch(&self, pattern: &[u8]) -> Option<Vec<usize>>;
+    fn bmsearch(&self, pattern: &[u8]) -> Option<Vec<usize>>;
     fn prefix_table(pattern: &[u8]) -> Vec<isize>;
+    fn bad_char_table(pattern: &[u8]) -> [usize; 256];
 }
 
 impl Replace for [u8] {
@@ -83,7 +86,7 @@ impl Replace for [u8] {
         let mut result = Vec::with_capacity(self.len());
         let mut i = 0;
 
-        if let Some(matches) = self.search(old) {
+        if let Some(matches) = self.bmsearch(old) {
             for m in matches {
                 result.extend_from_slice(&self[i..m]);
                 result.extend_from_slice(new);
@@ -98,18 +101,18 @@ impl Replace for [u8] {
     }
 
     #[allow(clippy::cast_sign_loss)]
-    fn search(&self, pattern: &[u8]) -> Option<Vec<usize>> {
-        if pattern.is_empty() {
+    fn kmpsearch(&self, pattern: &[u8]) -> Option<Vec<usize>> {
+        let m = self.len();
+        let n = pattern.len();
+
+        let mut i = 0;
+        let mut j = 0;
+
+        if pattern.is_empty() || n > m {
             return None;
         }
 
         let table = Self::prefix_table(pattern);
-
-        let mut i = 0;
-        let mut j: isize = 0;
-
-        let m = self.len();
-        let n = pattern.len();
 
         let mut indices = Vec::new();
 
@@ -124,6 +127,38 @@ impl Replace for [u8] {
                 indices.push(i - n);
                 j = table[j as usize];
             }
+        }
+
+        if indices.is_empty() {
+            None
+        } else {
+            Some(indices)
+        }
+    }
+
+    fn bmsearch(&self, pattern: &[u8]) -> Option<Vec<usize>> {
+        let m = self.len();
+        let n = pattern.len();
+
+        if pattern.is_empty() || n > m {
+            return None;
+        }
+
+        let table = Self::bad_char_table(pattern);
+
+        let mut indices = Vec::new();
+
+        let mut i = 0;
+        while i < m - n {
+            let mut j = n - 1;
+            while pattern[j] == self[i + j] {
+                if j == 0 {
+                    indices.push(i);
+                    break;
+                }
+                j -= 1;
+            }
+            i += table[self[i + n - 1] as usize];
         }
 
         if indices.is_empty() {
@@ -148,6 +183,17 @@ impl Replace for [u8] {
             j += 1;
             table[i] = j;
         }
+        table
+    }
+
+    fn bad_char_table(pattern: &[u8]) -> [usize; 256] {
+        let n = pattern.len();
+        let mut table = [n; 256];
+
+        for (i, &c) in pattern.iter().enumerate().take(n - 1) {
+            table[c as usize] = n - i - 1;
+        }
+
         table
     }
 }
