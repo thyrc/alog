@@ -72,6 +72,29 @@ lazy_static! {
     static ref RE: Regex = Regex::new(" \\[[0-9]{1,2}/").unwrap();
 }
 
+trait Replace {
+    fn replace(&self, old: &[u8], new: &[u8]) -> Vec<u8>;
+}
+
+impl Replace for [u8] {
+    fn replace(&self, old: &[u8], new: &[u8]) -> Vec<u8> {
+        let mut result = Vec::with_capacity(self.len());
+        let mut i = 0;
+
+        while i < self.len() {
+            if self[i..].starts_with(old) {
+                result.extend_from_slice(new);
+                i += old.len();
+            } else {
+                result.push(self[i]);
+                i += 1;
+            }
+        }
+
+        result
+    }
+}
+
 #[derive(Debug)]
 pub struct IOError {
     message: String,
@@ -384,27 +407,6 @@ fn replace_remote_address<R: BufRead, W: Write>(
     Ok(())
 }
 
-fn replace<T>(source: &[T], from: &[T], to: &[T]) -> Vec<T>
-where
-    T: Clone + PartialEq,
-{
-    let mut result = source.to_vec();
-    let from_len = from.len();
-    let to_len = to.len();
-
-    let mut i = 0;
-    while i + from_len <= result.len() {
-        if result[i..].starts_with(from) {
-            result.splice(i..i + from_len, to.iter().cloned());
-            i += to_len;
-        } else {
-            i += 1;
-        }
-    }
-
-    result
-}
-
 fn write_or_replace<W: Write>(
     slice: &[u8],
     needle: &str,
@@ -413,7 +415,7 @@ fn write_or_replace<W: Write>(
     writer: &mut W,
 ) -> Result<(), io::Error> {
     if should_replace && !needle.is_empty() {
-        writer.write_all(&replace(slice, needle.as_bytes(), repl.as_bytes()))?;
+        writer.write_all(&slice.replace(needle.as_bytes(), repl.as_bytes()))?;
     } else {
         writer.write_all(slice)?;
     }
