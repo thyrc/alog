@@ -149,7 +149,7 @@ impl Replace for [u8] {
         let mut indices = Vec::new();
 
         let mut i = 0;
-        while i < m - n {
+        while i <= m - n {
             let mut j = n - 1;
             while pattern[j] == self[i + j] {
                 if j == 0 {
@@ -190,7 +190,8 @@ impl Replace for [u8] {
         let n = pattern.len();
         let mut table = [n; 256];
 
-        for (i, &c) in pattern.iter().enumerate().take(n - 1) {
+        for i in 0..n - 1 {
+            let c = pattern[i];
             table[c as usize] = n - i - 1;
         }
 
