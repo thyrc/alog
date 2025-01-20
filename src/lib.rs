@@ -190,9 +190,8 @@ impl Replace for [u8] {
         let n = pattern.len();
         let mut table = [n; 256];
 
-        for i in 0..n - 1 {
-            let c = pattern[i];
-            table[c as usize] = n - i - 1;
+        for (i, &byte) in pattern.iter().enumerate().take(n - 1) {
+            table[byte as usize] = n - i - 1;
         }
 
         table
