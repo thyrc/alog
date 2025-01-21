@@ -789,4 +789,32 @@ mod tests {
         run_raw(&Config::default(), line, &mut buffer).unwrap();
         assert_eq!(buffer, b"localhost XxX");
     }
+
+    #[test]
+    fn thorough() {
+        use std::io::Cursor;
+        let mut buffer = Cursor::new(vec![]);
+        let log = Box::new("8.8.8.8 - frank proxy 8.8.8.8 direct 8.8.8.8".as_bytes());
+        let local_log = b"127.0.0.1 - frank proxy 127.0.0.1 direct 127.0.0.1";
+
+        let mut conf = Config::default();
+        conf.set_thorough(true);
+
+        replace_remote_address(&conf, log, &mut buffer).unwrap();
+        assert_eq!(&buffer.into_inner(), &local_log);
+    }
+
+    #[test]
+    fn thorough_non_overlapping() {
+        use std::io::Cursor;
+        let mut buffer = Cursor::new(vec![]);
+        let log = Box::new("8.8.8.8 - frank proxy 8.8.8.8.8.8".as_bytes());
+        let local_log = b"127.0.0.1 - frank proxy 127.0.0.1.8.8";
+
+        let mut conf = Config::default();
+        conf.set_thorough(true);
+
+        replace_remote_address(&conf, log, &mut buffer).unwrap();
+        assert_eq!(&buffer.into_inner(), &local_log);
+    }
 }
