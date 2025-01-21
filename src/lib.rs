@@ -5,8 +5,8 @@
 //! In fact by default `alog` just replaces the first *word* on every line of any input stream
 //! with a customizable string.
 //!
-//! With version 0.6 you can (at a substantial cost of CPU cycles) replace the `$remote_user`
-//! with `"-"` ([`Config::authuser`] set to `true`) as well. Defaults to `false`.
+//! With version 0.6 you can replace the `$remote_user` with `"-"` ([`Config::authuser`] set to
+//! `true`) as well. Defaults to `false`.
 //!
 //! With [`Config::trim`] set to `false` the first *word* can be the (zero width)
 //! anchor ^ or a single `b' '` (Space) separated by a `b' '` from the remainder of the line.
@@ -35,6 +35,9 @@
 //! [ASCII whitespace](https://infra.spec.whatwg.org/#ascii-whitespace) characters will be removed
 //! from the beginning of each line before replacing any `$remote_addr` by default.
 //! To switch back to the previous behaviour just set [`Config::trim`] to `false`.
+//!
+//! With version 0.9 the [`Config::thorough`] option was added. If set to `true` every occurrence
+//! of `$remote_addr` will also be replaced in the remainder of each line.
 //!
 //! ### Personal data in server logs
 //!
