@@ -32,10 +32,14 @@ Lines without a `$remote_addr` part will remain unchanged (but can be skipped).
 
 ## Changes
 
+With version 0.9
+
+* The `Config:thorough` option was added to replace every occurrence of `$remote_addr` in each line.
+
 With version 0.7
 
 * All [`ASCII whitespace character`]s are removed from the beginning of each line by default.
-* The run() and run_raw() funktions will now return a Result instead of exiting on failure.
+* The run() and run_raw() functions will now return a Result instead of exiting on failure.
 
 With version 0.6
 
@@ -49,7 +53,7 @@ dependencies anymore.
 
 ### Commandline Tool
 
-To build the `alog` commandline tool you now have to expicitly add `--features`.
+To build the `alog` command line tool you now have to explicitly add `--features`.
 
 ```shell
 cargo build --features alog-cli
