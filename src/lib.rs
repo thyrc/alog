@@ -154,11 +154,14 @@ impl Replace for [u8] {
             while pattern[j] == self[i + j] {
                 if j == 0 {
                     indices.push(i);
+                    i += n;
                     break;
                 }
                 j -= 1;
             }
-            i += table[self[i + n - 1] as usize];
+            if j != 0 {
+                i += table[self[i + n - 1] as usize];
+            }
         }
 
         if indices.is_empty() {
