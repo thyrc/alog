@@ -167,7 +167,7 @@ impl Replace for [u8] {
                 j -= 1;
             }
             if j != 0 {
-                i += table[self[i + n - 1] as usize];
+                i += table[self[i + j] as usize];
             }
         }
 
