@@ -93,7 +93,7 @@ impl Replace for [u8] {
         let mut result = Vec::with_capacity(self.len());
         let mut i = 0;
 
-        if let Some(matches) = self.bmsearch(old) {
+        if let Some(matches) = self.kmpsearch(old) {
             for m in matches {
                 result.extend_from_slice(&self[i..m]);
                 result.extend_from_slice(new);
