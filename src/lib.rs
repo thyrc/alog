@@ -62,7 +62,7 @@ use std::cmp::Ordering;
 use std::fs::{File, OpenOptions};
 use std::io::{self, BufRead, BufReader, BufWriter, Write};
 use std::path::Path;
-use std::{fmt, net};
+use std::{fmt, net, str};
 
 use regex::bytes::Regex;
 
@@ -80,6 +80,7 @@ trait Replace {
     fn replace(&self, old: &[u8], new: &[u8]) -> Vec<u8>;
     fn kmpsearch(&self, pattern: &[u8]) -> Option<Vec<usize>>;
     fn bmsearch(&self, pattern: &[u8]) -> Option<Vec<usize>>;
+    fn research(&self, pattern: &[u8]) -> Option<Vec<usize>>;
     fn prefix_table(pattern: &[u8]) -> Vec<isize>;
     fn bad_char_table(pattern: &[u8]) -> [usize; 256];
 }
@@ -171,6 +172,18 @@ impl Replace for [u8] {
             None
         } else {
             Some(indices)
+        }
+    }
+
+    fn research(&self, pattern: &[u8]) -> Option<Vec<usize>> {
+        // pattern was a &str not so long ago
+        let re = Regex::new(str::from_utf8(pattern).unwrap()).unwrap();
+        let matches: Vec<_> = re.find_iter(self).map(|m| m.start()).collect();
+
+        if matches.is_empty() {
+            None
+        } else {
+            Some(matches)
         }
     }
 
