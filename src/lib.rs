@@ -83,6 +83,7 @@ trait Replace {
     fn kmpsearch(&self, pattern: &[u8]) -> Option<Vec<usize>>;
     fn bmsearch(&self, pattern: &[u8]) -> Option<Vec<usize>>;
     fn research(&self, pattern: &[u8]) -> Option<Vec<usize>>;
+    fn windowsearch(&self, pattern: &[u8]) -> Option<Vec<usize>>;
     fn prefix_table(pattern: &[u8]) -> Vec<isize>;
     fn bad_char_table(pattern: &[u8]) -> [usize; 256];
 }
@@ -92,7 +93,7 @@ impl Replace for [u8] {
         let mut result = Vec::with_capacity(self.len());
         let mut i = 0;
 
-        if let Some(matches) = self.kmpsearch(old) {
+        if let Some(matches) = self.windowsearch(old) {
             for m in matches {
                 result.extend_from_slice(&self[i..m]);
                 result.extend_from_slice(new);
@@ -181,12 +182,39 @@ impl Replace for [u8] {
     fn research(&self, pattern: &[u8]) -> Option<Vec<usize>> {
         // pattern was a &str not so long ago
         let re = Regex::new(str::from_utf8(pattern).unwrap()).unwrap();
-        let matches: Vec<_> = re.find_iter(self).map(|m| m.start()).collect();
+        let indices: Vec<_> = re.find_iter(self).map(|m| m.start()).collect();
 
-        if matches.is_empty() {
+        if indices.is_empty() {
             None
         } else {
-            Some(matches)
+            Some(indices)
+        }
+    }
+
+    fn windowsearch(&self, pattern: &[u8]) -> Option<Vec<usize>> {
+        let m = self.len();
+        let n = pattern.len();
+
+        if pattern.is_empty() || n > m {
+            return None;
+        }
+
+        let mut indices = Vec::new();
+        let mut i = 0;
+
+        while i <= self.len() - n {
+            if &self[i..i + n] == pattern {
+                indices.push(i);
+                i += n;
+            } else {
+                i += 1;
+            }
+        }
+
+        if indices.is_empty() {
+            None
+        } else {
+            Some(indices)
         }
     }
 

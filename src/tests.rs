@@ -159,6 +159,14 @@ fn research() {
 }
 
 #[test]
+fn windowsearch() {
+    let hay = b"8.8.8.8 - frank proxy 8.8.8.8 direct 8.8.8.8";
+    let mat = hay.windowsearch(b"8.8.8.8");
+
+    assert_eq!(Some(vec![0, 22, 37]), mat);
+}
+
+#[test]
 fn thorough() {
     use std::io::Cursor;
     let mut buffer = Cursor::new(vec![]);
