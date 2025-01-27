@@ -130,6 +130,7 @@ impl Replace for [u8] {
             if (j as usize) == n {
                 indices.push(i - n);
                 j = table[j as usize];
+                i += n;
             }
         }
 
